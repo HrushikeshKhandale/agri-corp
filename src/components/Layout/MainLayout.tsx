@@ -1,5 +1,6 @@
+// src/components/Layout/MainLayout.tsx
 import React, { useEffect, useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Space, Button, Badge, Drawer, message } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Space, Button, Badge, Drawer } from 'antd';
 import {
   DashboardOutlined,
   ShoppingOutlined,
@@ -16,8 +17,7 @@ import {
   ManOutlined,
   UserAddOutlined
 } from '@ant-design/icons';
-import { useAuth } from '../../context/AuthContext';
-import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContexts';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/use-mobile';
 
@@ -29,18 +29,17 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const auth = useAuth();
+  const { user, role, logout, hasPermission } = auth;
+  const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const { authState, logout, hasPermission } = useAuth();
-  const { transfers } = useData();
-  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const pendingTransfersCount = authState.showroomId
-    ? transfers.filter(t => t.toShowroomId === authState.showroomId && t.status === 'Pending').length
-    : transfers.filter(t => t.status === 'Pending').length;
+  const pendingTransfersCount = 0; // Placeholder for transfers count
 
+  // Dynamic menu items based on permissions
   const menuItems = [
     {
       key: '/dashboard',
@@ -101,7 +100,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       permission: 'view_orders'
     },
     {
-      key: '/Customers',
+      key: '/customers',
       icon: <UserOutlined />,
       label: 'Customers',
       permission: 'view_customers'
@@ -113,13 +112,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       permission: 'view_showrooms'
     },
     {
-      key: '/employees',
+      key: '/employees-root', // Changed from '/employees' to avoid duplication
       icon: <TeamOutlined />,
       label: 'Employees',
       permission: 'view_employees',
       children: [
         {
-          key: '/employees',
+          key: '/employees/users',
           icon: <UserAddOutlined />,
           label: 'Employees',
           permission: 'manage_users'
@@ -139,18 +138,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       permission: 'manage_settings'
     }
   ].filter(item => {
-    if (!authState.isAuthenticated) {
-      console.log(`Filtering menu item ${item.key}: skipped due to unauthenticated user`);
-      return false;
-    }
+    if (!user) return false;
     const hasItemPermission = hasPermission(item.permission);
-    console.log(`Filtering menu item ${item.key} for role ${authState.role || 'unknown'}: ${hasItemPermission}`);
     if (item.children) {
-      item.children = item.children.filter(child => {
-        const hasChildPermission = hasPermission(child.permission);
-        console.log(`Filtering child menu item ${child.key} for role ${authState.role || 'unknown'}: ${hasChildPermission}`);
-        return hasChildPermission;
-      });
+      item.children = item.children.filter(child => hasPermission(child.permission));
       return hasItemPermission || item.children.length > 0;
     }
     return hasItemPermission;
@@ -180,7 +171,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    console.log(`Navigating to ${key} by user with role ${authState.role || 'unknown'}`);
     if (key === 'logout') {
       logout();
       navigate('/login');
@@ -191,13 +181,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const handleUserMenuClick = ({ key }: { key: string }) => {
-    console.log(`User menu clicked: ${key} by user with role ${authState.role || 'unknown'}`);
     if (key === 'logout') {
       logout();
       navigate('/login');
     } else if (key === 'settings' && !hasPermission('manage_settings')) {
-      message.error('You do not have permission to access settings');
-      console.log(`Permission check failed: manage_settings for role ${authState.role || 'unknown'}`);
+      alert('You do not have permission to access settings');
     } else {
       navigate(`/${key}`);
     }
@@ -231,7 +219,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <Layout>
-      {!authState.isAuthenticated ? (
+      {!user ? (
         <Content
           style={{
             marginTop: 64,
@@ -321,10 +309,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   placement="bottomRight"
                 >
                   <div className="flex items-center space-x-2 cursor-pointer px-3 py-1 rounded-lg hover:bg-gray-50">
-                    <Avatar src={authState.user?.avatar} icon={<UserOutlined />} size="small" />
                     <Space direction="vertical" size={0}>
-                      {/* <span className="text-sm font-medium">{authState.user?.name || 'Unknown'}</span> */}
-                      <span className="text-xs text-gray-500">{authState.user?.role || 'Unknown'}</span>
+                      <span className="text-xs text-gray-500">{role || 'Unknown'}</span>
                     </Space>
                   </div>
                 </Dropdown>
@@ -336,7 +322,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 marginTop: 64,
                 padding: 24,
                 minHeight: 'calc(100vh - 64px)',
-                overflowY: 'auto',
+        overflowY: 'auto',
                 background: '#f5f5f5'
               }}
             >
@@ -352,8 +338,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 export default MainLayout;
 
 
-//  import React, { useEffect, useState } from 'react';
-// import { Layout, Menu, Avatar, Dropdown, Typography, Space, Button, Badge, Drawer } from 'antd';
+
+// import React, { useEffect, useState } from 'react';
+// import { Layout, Menu, Avatar, Dropdown, Typography, Space, Button, Badge, Drawer, message } from 'antd';
 // import {
 //   DashboardOutlined,
 //   ShoppingOutlined,
@@ -370,7 +357,8 @@ export default MainLayout;
 //   ManOutlined,
 //   UserAddOutlined
 // } from '@ant-design/icons';
-// import { useAuth } from '../../context/AuthContext';
+// import { useAuth } from '../../context/AuthContexts';
+// import { useData } from '../../context/DataContext';
 // import { useLocation, useNavigate } from 'react-router-dom';
 // import { useIsMobile } from '../../hooks/use-mobile';
 
@@ -384,10 +372,15 @@ export default MainLayout;
 // const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 //   const [collapsed, setCollapsed] = useState(false);
 //   const [drawerVisible, setDrawerVisible] = useState(false);
-//   const { authState, logout, hasPermission } = useAuth();
+//   const auth = useAuth();
+//   const { transfers } = useData();
 //   const isMobile = useIsMobile();
 //   const location = useLocation();
 //   const navigate = useNavigate();
+
+//   const pendingTransfersCount = auth.showroomId
+//     ? transfers.filter(t => t.toShowroomId === auth.showroomId && t.status === 'Pending').length
+//     : transfers.filter(t => t.status === 'Pending').length;
 
 //   const menuItems = [
 //     {
@@ -435,7 +428,7 @@ export default MainLayout;
 //           permission: 'add_stocks'
 //         },
 //         {
-//           key: '/stock//transfers',
+//           key: '/stock/transfers',
 //           icon: <SwapOutlined />,
 //           label: 'Stock Transfers',
 //           permission: 'view_transfers'
@@ -449,6 +442,12 @@ export default MainLayout;
 //       permission: 'view_orders'
 //     },
 //     {
+//       key: '/Customers',
+//       icon: <UserOutlined />,
+//       label: 'Customers',
+//       permission: 'view_customers'
+//     },
+//     {
 //       key: '/showrooms',
 //       icon: <ShopOutlined />,
 //       label: 'Showrooms',
@@ -459,18 +458,13 @@ export default MainLayout;
 //       icon: <TeamOutlined />,
 //       label: 'Employees',
 //       permission: 'view_employees',
-//       children: [ {
+//       children: [
+//         {
 //           key: '/employees',
 //           icon: <UserAddOutlined />,
 //           label: 'Employees',
-//           permission: 'view_users'
-//         },
-//         // {
-//         //   key: '/employees/users',
-//         //   icon: <UserAddOutlined />,
-//         //   label: 'Users',
-//         //   permission: 'view_users'
-//         // }
+//           permission: 'manage_users'
+//         }
 //       ]
 //     },
 //     {
@@ -483,9 +477,25 @@ export default MainLayout;
 //       key: '/settings',
 //       icon: <SettingOutlined />,
 //       label: 'Settings',
-//       permission: 'view_settings'
+//       permission: 'manage_settings'
 //     }
-//   ].filter(item => hasPermission(item.permission));
+//   ].filter(item => {
+//     if (!auth.isAuthenticated) {
+//       console.log(`Filtering menu item ${item.key}: skipped due to unauthenticated user`);
+//       return false;
+//     }
+//     const hasItemPermission = auth.hasPermission(item.permission);
+//     console.log(`Filtering menu item ${item.key} for role ${auth.role || 'unknown'}: ${hasItemPermission}`);
+//     if (item.children) {
+//       item.children = item.children.filter(child => {
+//         const hasChildPermission = auth.hasPermission(child.permission);
+//         console.log(`Filtering child menu item ${child.key} for role ${auth.role || 'unknown'}: ${hasChildPermission}`);
+//         return hasChildPermission;
+//       });
+//       return hasItemPermission || item.children.length > 0;
+//     }
+//     return hasItemPermission;
+//   });
 
 //   const userMenuItems = [
 //     {
@@ -496,7 +506,8 @@ export default MainLayout;
 //     {
 //       key: 'settings',
 //       label: 'Settings',
-//       icon: <SettingOutlined />
+//       icon: <SettingOutlined />,
+//       disabled: !auth.hasPermission('manage_settings')
 //     },
 //     {
 //       type: 'divider' as const
@@ -510,19 +521,24 @@ export default MainLayout;
 //   ];
 
 //   const handleMenuClick = ({ key }: { key: string }) => {
+//     console.log(`Navigating to ${key} by user with role ${auth.role || 'unknown'}`);
 //     if (key === 'logout') {
-//       logout();
+//       auth.logout();
 //       navigate('/login');
 //     } else {
 //       navigate(key);
-//       if (isMobile) setDrawerVisible(false); // auto-close drawer on mobile
+//       if (isMobile) setDrawerVisible(false);
 //     }
 //   };
 
 //   const handleUserMenuClick = ({ key }: { key: string }) => {
+//     console.log(`User menu clicked: ${key} by user with role ${auth.role || 'unknown'}`);
 //     if (key === 'logout') {
-//       logout();
+//       auth.logout();
 //       navigate('/login');
+//     } else if (key === 'settings' && !auth.hasPermission('manage_settings')) {
+//       message.error('You do not have permission to access settings');
+//       console.log(`Permission check failed: manage_settings for role ${auth.role || 'unknown'}`);
 //     } else {
 //       navigate(`/${key}`);
 //     }
@@ -556,92 +572,7 @@ export default MainLayout;
 
 //   return (
 //     <Layout>
-//       {!isMobile ? (
-//         <Sider
-//           trigger={null}
-//           collapsible
-//           collapsed={collapsed}
-//           width={256}
-//           theme="light"
-//           style={{
-//             position: 'fixed',
-//             left: 0,
-//             top: 0,
-//             bottom: 0,
-//             zIndex: 1000,
-//             background: '#fff',
-//             borderRight: '1px solid #f0f0f0'
-//           }}
-//         >
-//           {renderSidebarContent()}
-//         </Sider>
-//       ) : (
-//         <Drawer
-//           placement="left"
-//           closable={false}
-//           onClose={() => setDrawerVisible(false)}
-//           visible={drawerVisible}
-//           bodyStyle={{ padding: 0 }}
-//           width={256}
-//         >
-//           {renderSidebarContent()}
-//         </Drawer>
-//       )}
-
-//       <Layout style={{ marginLeft: !isMobile ? siderWidth : 0, transition: 'margin-left 0.2s' }}>
-//         <Header
-//           style={{
-//             position: 'fixed',
-//             top: 0,
-//             left: !isMobile ? siderWidth : 0,
-//             right: 0,
-//             height: 64,
-//             background: '#fff',
-//             zIndex: 1001,
-//             display: 'flex',
-//             alignItems: 'center',
-//             justifyContent: 'space-between',
-//             padding: '0 16px',
-//             borderBottom: '1px solid #f0f0f0',
-//             transition: 'left 0.2s'
-//           }}
-//         >
-//           <div>
-//             <Button
-//               type="text"
-//               icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuOutlined /> : <MenuOutlined />)}
-//               onClick={() => {
-//                 if (isMobile) {
-//                   setDrawerVisible(true);
-//                 } else {
-//                   setCollapsed(!collapsed);
-//                 }
-//               }}
-//             />
-//           </div>
-
-//           <div className="flex items-center space-x-4">
-//             <Badge count={3} size="small">
-//               <Button type="text" icon={<BellOutlined />} />
-//             </Badge>
-//             <Dropdown
-//               menu={{
-//                 items: userMenuItems,
-//                 onClick: handleUserMenuClick
-//               }}
-//               placement="bottomRight"
-//             >
-//               <div className="flex items-center space-x-2 cursor-pointer px-3 py-1 rounded-lg hover:bg-gray-50">
-//                 <Avatar src={authState.user?.avatar} icon={<UserOutlined />} size="small" />
-//                 <Space direction="vertical" size={0}>
-//                   {/* <span className="text-sm font-medium">{authState.user?.name}</span> */}
-//                   <span className="text-xs text-gray-500">{authState.user?.role}</span>
-//                 </Space>
-//               </div>
-//             </Dropdown>
-//           </div>
-//         </Header>
-
+//       {!auth.isAuthenticated ? (
 //         <Content
 //           style={{
 //             marginTop: 64,
@@ -653,9 +584,112 @@ export default MainLayout;
 //         >
 //           <div className="bg-white rounded-lg p-6 shadow-sm">{children}</div>
 //         </Content>
-//       </Layout>
+//       ) : (
+//         <>
+//           {!isMobile ? (
+//             <Sider
+//               trigger={null}
+//               collapsible
+//               collapsed={collapsed}
+//               width={256}
+//               theme="light"
+//               style={{
+//                 position: 'fixed',
+//                 left: 0,
+//                 top: 0,
+//                 bottom: 0,
+//                 zIndex: 1000,
+//                 background: '#fff',
+//                 borderRight: '1px solid #f0f0f0'
+//               }}
+//             >
+//               {renderSidebarContent()}
+//             </Sider>
+//           ) : (
+//             <Drawer
+//               placement="left"
+//               closable={false}
+//               onClose={() => setDrawerVisible(false)}
+//               visible={drawerVisible}
+//               bodyStyle={{ padding: 0 }}
+//               width={256}
+//             >
+//               {renderSidebarContent()}
+//             </Drawer>
+//           )}
+
+//           <Layout style={{ marginLeft: !isMobile ? siderWidth : 0, transition: 'margin-left 0.2s' }}>
+//             <Header
+//               style={{
+//                 position: 'fixed',
+//                 top: 0,
+//                 left: !isMobile ? siderWidth : 0,
+//                 right: 0,
+//                 height: 64,
+//                 background: '#fff',
+//                 zIndex: 1001,
+//                 display: 'flex',
+//                 alignItems: 'center',
+//                 justifyContent: 'space-between',
+//                 padding: '0 16px',
+//                 borderBottom: '1px solid #f0f0f0',
+//                 transition: 'left 0.2s'
+//               }}
+//             >
+//               <div>
+//                 <Button
+//                   type="text"
+//                   icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuOutlined /> : <MenuOutlined />)}
+//                   onClick={() => {
+//                     if (isMobile) {
+//                       setDrawerVisible(true);
+//                     } else {
+//                       setCollapsed(!collapsed);
+//                     }
+//                   }}
+//                 />
+//               </div>
+
+//               <div className="flex items-center space-x-4">
+//                 <Badge count={pendingTransfersCount} size="small">
+//                   <Button type="text" icon={<BellOutlined />} onClick={() => navigate('/stock/transfers')} />
+//                 </Badge>
+//                 <Dropdown
+//                   menu={{
+//                     items: userMenuItems,
+//                     onClick: handleUserMenuClick
+//                   }}
+//                   placement="bottomRight"
+//                 >
+//                   <div className="flex items-center space-x-2 cursor-pointer px-3 py-1 rounded-lg hover:bg-gray-50">
+//                     <Avatar src={auth.user?.avatar} icon={<UserOutlined />} size="small" />
+//                     <Space direction="vertical" size={0}>
+//                       {/* <span className="text-sm font-medium">{auth.user?.name || 'Unknown'}</span> */}
+//                       <span className="text-xs text-gray-500">{auth.user?.role || 'Unknown'}</span>
+//                     </Space>
+//                   </div>
+//                 </Dropdown>
+//               </div>
+//             </Header>
+
+//             <Content
+//               style={{
+//                 marginTop: 64,
+//                 padding: 24,
+//                 minHeight: 'calc(100vh - 64px)',
+//                 overflowY: 'auto',
+//                 background: '#f5f5f5'
+//               }}
+//             >
+//               <div className="bg-white rounded-lg p-6 shadow-sm">{children}</div>
+//             </Content>
+//           </Layout>
+//         </>
+//       )}
 //     </Layout>
 //   );
 // };
 
 // export default MainLayout;
+
+ 
