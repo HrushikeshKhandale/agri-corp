@@ -1,6 +1,6 @@
 // src/pages/Showrooms.tsx
 import React, { useState, useEffect } from 'react';
-import { Table, Modal, Form, Input, Checkbox, message, Segmented } from 'antd';
+import { Table, Modal, Form, Input, Checkbox, message, Segmented, Spin } from 'antd';
 import { useAuth } from '../context/AuthContexts';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/card';
@@ -64,7 +64,12 @@ const Showrooms: React.FC = () => {
   }
 
   if (loadingShowrooms) {
-    return <div className="p-8 text-center">Loading showrooms...</div>;
+    return (
+      <div className="p-8 text-center">
+        <Spin size="large" />
+        <p className="mt-2">Loading showrooms...</p>
+      </div>
+    );
   }
 
   // Find user's showroom by matching contactPerson with username
@@ -122,65 +127,62 @@ const Showrooms: React.FC = () => {
     { title: 'Phone', dataIndex: 'phone', key: 'phone', align: 'center' as const },
     { title: 'Email', dataIndex: 'email', key: 'email', align: 'center' as const },
     {
-  title: "Actions",
-  key: "actions",
-  align: "center" as const,
-  render: (_: any, record: Showroom) => (
-    <span className="flex flex-wrap justify-center gap-2">
-  <Button
-  variant="outline"
-  size="sm"
-  onClick={() => {
-    Modal.confirm({
-      title: 'Edit Showroom',
-      content: `Are you sure you want to edit "${record.name}"?`,
-      okText: 'Edit',
-      cancelText: 'Cancel',
-      onOk: () => {
-        setEditingShowroom(record);
-        if (form) {
-          setTimeout(() => {
-            form.setFieldsValue(record);
-          }, 0);
-        }
-        setIsModalVisible(true);
-      },
-      onCancel() {
-        console.log('Edit cancelled');
-      },
-    });
-  }}
-  disabled={!hasPermission("manage_showrooms") || (role !== 'ADMIN' && record.id !== userShowroom?.id)}
->
-  <EditOutlined />
-  Edit
-</Button>   <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => {
-          Modal.confirm({
-            title: 'Are you sure you want to delete this showroom?',
-            content: `This action cannot be undone. Showroom: ${record.name}`,
-            okText: 'Yes, Delete',
-            okType: 'danger',
-            cancelText: 'Cancel',
-            onOk: async () => {
-              console.log(`Attempting to delete showroom ${record.id} by user with role ${role}`);
-              await deleteShowroom(record.id);
-            },
-            onCancel() {
-              console.log('Delete cancelled');
-            },
-          });
-        }}
-        disabled={!hasPermission("manage_showrooms") || (role !== 'ADMIN' && record.id !== userShowroom?.id)}
-      >
-        <DeleteOutlined />
-        Delete
-      </Button>
-    </span>
-  ),
-}
+      title: 'Actions',
+      key: 'actions',
+      align: 'center' as const,
+      render: (_: any, record: Showroom) => (
+        <span className="flex flex-wrap justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              Modal.confirm({
+                title: 'Edit Showroom',
+                content: `Are you sure you want to edit "${record.name}"?`,
+                okText: 'Edit',
+                cancelText: 'Cancel',
+                onOk: () => {
+                  setEditingShowroom(record);
+                  setTimeout(() => {
+                    form.setFieldsValue(record);
+                  }, 0);
+                  setIsModalVisible(true);
+                },
+                onCancel() {
+                  console.log('Edit cancelled');
+                },
+              });
+            }}
+            disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && record.id !== userShowroom?.id)}
+          >
+            <EditOutlined /> Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              Modal.confirm({
+                title: 'Delete Showroom',
+                content: `Are you sure you want to delete "${record.name}"? This action cannot be undone.`,
+                okText: 'Yes, Delete',
+                okType: 'danger',
+                cancelText: 'Cancel',
+                onOk: async () => {
+                  console.log(`Attempting to delete showroom ${record.id} by user with role ${role}`);
+                  await deleteShowroom(record.id);
+                },
+                onCancel() {
+                  console.log('Delete cancelled');
+                },
+              });
+            }}
+            disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && record.id !== userShowroom?.id)}
+          >
+            <DeleteOutlined /> Delete
+          </Button>
+        </span>
+      ),
+    },
   ];
 
   // Modal Submit Handler
@@ -226,7 +228,7 @@ const Showrooms: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 md:p-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
         <h2 className="text-2xl font-semibold">{role === 'ADMIN' ? 'Showrooms' : 'Your Showroom'}</h2>
         <div className="flex gap-2 flex-wrap items-center">
           <Segmented
@@ -256,46 +258,77 @@ const Showrooms: React.FC = () => {
             columns={columns}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            className="min-w-full"
           />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredShowrooms.map((showroom, index) => (
-            <Card key={showroom.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle>{showroom.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p><strong>Location:</strong> {showroom.location}</p>
-                <p><strong>Contact Person:</strong> {showroom.contactPerson}</p>
-                <p><strong>Phone:</strong> {showroom.phone}</p>
-                <p><strong>Email:</strong> {showroom.email}</p>
-                <p><strong>Sr. No.:</strong> {index + 1}</p>
-              </CardContent>
-              <CardFooter className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditingShowroom(showroom);
-                    form.setFieldsValue(showroom);
-                    setIsModalVisible(true);
-                  }}
-                  disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
-                >
-                  <EditOutlined /> Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => deleteShowroom(showroom.id)}
-                  disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
-                >
-                  <DeleteOutlined /> Delete
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+        {filteredShowrooms.map((showroom, index) => (
+  <Card key={showroom.id} className="flex flex-col h-full overflow-hidden rounded-lg shadow-sm">
+    <CardHeader>
+      <CardTitle className="text-lg font-medium truncate">{showroom.name}</CardTitle>
+    </CardHeader>
+    <CardContent className="flex-grow space-y-2 pt-4 pb-4 overflow-hidden">
+      <p><strong>Location:</strong> <span className="block truncate">{showroom.location}</span></p>
+      <p><strong>Contact Person:</strong> <span className="block truncate">{showroom.contactPerson}</span></p>
+      <p><strong>Phone:</strong> <span className="block truncate">{showroom.phone}</span></p>
+      <p><strong>Email:</strong> <span className="block truncate">{showroom.email}</span></p>
+      <p><strong>Sr. No.:</strong> {index + 1}</p>
+    </CardContent>
+    <CardFooter className="flex flex-col sm:flex-row justify-start gap-2 pt-2 pb-4 px-4 w-full">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          Modal.confirm({
+            title: 'Edit Showroom',
+            content: `Are you sure you want to edit "${showroom.name}"?`,
+            okText: 'Edit',
+            cancelText: 'Cancel',
+            onOk: () => {
+              setEditingShowroom(showroom);
+              setTimeout(() => {
+                form.setFieldsValue(showroom);
+              }, 0);
+              setIsModalVisible(true);
+            },
+            onCancel() {
+              console.log('Edit cancelled');
+            },
+          });
+        }}
+        disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
+        className="w-full sm:w-auto text-xs py-1 px-2"
+      >
+        <EditOutlined /> Edit
+      </Button>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => {
+          Modal.confirm({
+            title: 'Delete Showroom',
+            content: `Are you sure you want to delete "${showroom.name}"? This action cannot be undone.`,
+            okText: 'Yes, Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+              console.log(`Attempting to delete showroom ${showroom.id} by user with role ${role}`);
+              await deleteShowroom(showroom.id);
+            },
+            onCancel() {
+              console.log('Delete cancelled');
+            },
+          });
+        }}
+        disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
+        className="w-full sm:w-auto text-xs py-1 px-2"
+      >
+        <DeleteOutlined /> Delete
+      </Button>
+    </CardFooter>
+  </Card>
+))}
         </div>
       )}
 
@@ -309,10 +342,12 @@ const Showrooms: React.FC = () => {
           form.resetFields();
         }}
         confirmLoading={isLoading}
-        width={600}
+        width={Math.min(window.innerWidth - 40, 600)} // Responsive width
         okText="Save"
         okButtonProps={{ className: buttonVariants({ variant: 'default' }) }}
         cancelButtonProps={{ className: buttonVariants({ variant: 'outline' }) }}
+        maskClosable={true} // ✅ Close on outside click (default is true, but explicit)
+        destroyOnClose={true} // Clean up when closed
       >
         <Form form={form} layout="vertical" className="space-y-2">
           <Form.Item
@@ -320,42 +355,42 @@ const Showrooms: React.FC = () => {
             label="Name"
             rules={[{ required: true, message: 'Please input showroom name!' }]}
           >
-            <Input />
+            <Input placeholder="Enter showroom name" />
           </Form.Item>
           <Form.Item
             name="location"
             label="Location"
             rules={[{ required: true, message: 'Please input location!' }]}
           >
-            <Input />
+            <Input placeholder="Enter location" />
           </Form.Item>
           <Form.Item
             name="contactPerson"
             label="Contact Person"
             rules={[{ required: true, message: 'Please input contact person!' }]}
           >
-            <Input />
+            <Input placeholder="Enter contact person name" />
           </Form.Item>
           <Form.Item
             name="phone"
             label="Phone"
             rules={[{ required: true, message: 'Please input phone number!' }]}
           >
-            <Input />
+            <Input placeholder="Enter phone number" />
           </Form.Item>
           <Form.Item
             name="email"
             label="Email"
-            // rules={[
-            //   { required: true, message: 'Please input email!' },
-            //   { type: 'email', message: 'Invalid email format' },
-            // ]}
+            rules={[
+              { required: true, message: 'Please input email!' },
+              { type: 'email', message: 'Invalid email format' },
+            ]}
           >
-            <Input />
+            <Input placeholder="Enter email" />
           </Form.Item>
           {!editingShowroom && (
             <>
-              <Form.Item
+              {/* <Form.Item
                 name="createAdmin"
                 valuePropName="checked"
                 className="mb-0"
@@ -371,19 +406,19 @@ const Showrooms: React.FC = () => {
                 <Checkbox disabled={!hasPermission('manage_users')}>
                   Create a Showroom Admin account
                 </Checkbox>
-              </Form.Item>
-              <Form.Item
+              </Form.Item> */}
+              {/* <Form.Item
                 name="adminEmail"
                 label="Admin Email"
-                // rules={[
-                //   {
-                //     required: form.getFieldValue('createAdmin'),
-                //     message: 'Please input admin email!',
-                //   },
-                //   // { type: 'email', message: 'Invalid email format' },
-                // ]}
+                rules={[
+                  {
+                    required: form.getFieldValue('createAdmin'),
+                    message: 'Please input admin email!',
+                  },
+                  { type: 'email', message: 'Invalid email format' },
+                ]}
               >
-                <Input disabled={!hasPermission('manage_users')} />
+                <Input placeholder="Enter admin email" disabled={!hasPermission('manage_users')} />
               </Form.Item>
               <Form.Item
                 name="adminPassword"
@@ -395,8 +430,8 @@ const Showrooms: React.FC = () => {
                   },
                 ]}
               >
-                <Input.Password disabled={!hasPermission('manage_users')} />
-              </Form.Item>
+                <Input.Password placeholder="Enter admin password" disabled={!hasPermission('manage_users')} />
+              </Form.Item> */}
             </>
           )}
         </Form>

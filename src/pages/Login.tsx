@@ -104,7 +104,7 @@ const Login: React.FC = () => {
         </Col>
 
         {/* Right Side - Demo Credentials */}
-        <Col xs={24} lg={12}>
+        {/* <Col xs={24} lg={12}>
           <Card className="ag-card bg-white/10 backdrop-blur border-white/20">
             <Title level={3} className="!text-white !mb-6">Demo Credentials</Title>
             <Paragraph className="!text-white/80 !mb-6">
@@ -149,7 +149,7 @@ const Login: React.FC = () => {
               ))}
             </Space>
           </Card>
-        </Col>
+        </Col> */}
       </Row>
     </div>
   );
