@@ -1,25 +1,15 @@
 // src/pages/Showrooms.tsx
+
 import React, { useState, useEffect } from 'react';
 import { Table, Modal, Form, Input, Checkbox, message, Segmented, Spin } from 'antd';
 import { useAuth } from '../context/AuthContexts';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/card';
 import { Button, buttonVariants } from '../components/ui/button';
-import axiosInstance from '../services/axiosInstance';
+import showroomService from '../services/showroomService';
+import { Showroom } from '../services/types/showroom';
 
-// Interface for Showroom
-interface Showroom {
-  id: number;
-  name: string;
-  location: string;
-  contactPerson: string;
-  phone: string;
-  email: string;
-  adminEmail: string | null;
-  adminPassword: string | null;
-}
-
-// Payload for create/update (without 'id')
+// Type for create/update payload (without 'id')
 type ShowroomPayload = Omit<Showroom, 'id'>;
 
 const Showrooms: React.FC = () => {
@@ -31,13 +21,17 @@ const Showrooms: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
   const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [loadingShowrooms, setLoadingShowrooms] = useState(true);
+  const [tablePagination, setTablePagination] = useState({
+    current: 1,
+    pageSize: 10,
+  });
 
   // Fetch showrooms on mount
   useEffect(() => {
     const fetchShowrooms = async () => {
       try {
-        const response = await axiosInstance.get('/agri/api/showrooms');
-        setShowrooms(response.data);
+        const data = await showroomService.getAllShowrooms();
+        setShowrooms(data);
       } catch (error) {
         console.error('Failed to fetch showrooms:', error);
         message.error('Failed to load showrooms');
@@ -81,9 +75,13 @@ const Showrooms: React.FC = () => {
   // CRUD Functions
   const addShowroom = async (data: ShowroomPayload) => {
     try {
-      const response = await axiosInstance.post('/agri/api/showrooms', data);
-      setShowrooms(prev => [...prev, response.data]);
+      const newShowroom = await showroomService.createShowroom(data);
       message.success('Showroom added successfully');
+
+      // ✅ Refetch to ensure fresh data
+      const updatedShowrooms = await showroomService.getAllShowrooms();
+      setShowrooms(updatedShowrooms);
+
     } catch (error) {
       message.error('Failed to add showroom');
       console.error('Add showroom error:', error);
@@ -93,9 +91,13 @@ const Showrooms: React.FC = () => {
 
   const updateShowroom = async (id: number, data: ShowroomPayload) => {
     try {
-      const response = await axiosInstance.put(`/agri/api/showrooms/${id}`, data);
-      setShowrooms(prev => prev.map(s => (s.id === id ? response.data : s)));
+      const updated = await showroomService.updateShowroom(id, data);
       message.success('Showroom updated successfully');
+
+      // ✅ Refetch to ensure fresh data
+      const updatedShowrooms = await showroomService.getAllShowrooms();
+      setShowrooms(updatedShowrooms);
+
     } catch (error) {
       message.error('Failed to update showroom');
       console.error('Update showroom error:', error);
@@ -105,9 +107,13 @@ const Showrooms: React.FC = () => {
 
   const deleteShowroom = async (id: number) => {
     try {
-      await axiosInstance.delete(`/agri/api/showrooms/${id}`);
-      setShowrooms(prev => prev.filter(s => s.id !== id));
+      await showroomService.deleteShowroom(id);
       message.success('Showroom deleted successfully');
+
+      // ✅ Refetch to ensure fresh data
+      const updatedShowrooms = await showroomService.getAllShowrooms();
+      setShowrooms(updatedShowrooms);
+
     } catch (error) {
       message.error('Failed to delete showroom');
       console.error('Delete showroom error:', error);
@@ -118,7 +124,10 @@ const Showrooms: React.FC = () => {
   const columns = [
     {
       title: 'Sr. No.',
-      render: (_: any, __: any, index: number) => index + 1,
+      render: (_: any, __: any, index: number) => {
+        const { current, pageSize } = tablePagination;
+        return (current - 1) * pageSize + index + 1;
+      },
       align: 'center' as const,
     },
     { title: 'Name', dataIndex: 'name', key: 'name', align: 'center' as const },
@@ -257,78 +266,86 @@ const Showrooms: React.FC = () => {
             dataSource={filteredShowrooms}
             columns={columns}
             rowKey="id"
-            pagination={{ pageSize: 10 }}
+            pagination={{
+              ...tablePagination,
+              onChange: (page, pageSize) => {
+                setTablePagination({ current: page, pageSize });
+              },
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} showrooms`,
+            }}
             className="min-w-full"
           />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredShowrooms.map((showroom, index) => (
-  <Card key={showroom.id} className="flex flex-col h-full overflow-hidden rounded-lg shadow-sm">
-    <CardHeader>
-      <CardTitle className="text-lg font-medium truncate">{showroom.name}</CardTitle>
-    </CardHeader>
-    <CardContent className="flex-grow space-y-2 pt-4 pb-4 overflow-hidden">
-      <p><strong>Location:</strong> <span className="block truncate">{showroom.location}</span></p>
-      <p><strong>Contact Person:</strong> <span className="block truncate">{showroom.contactPerson}</span></p>
-      <p><strong>Phone:</strong> <span className="block truncate">{showroom.phone}</span></p>
-      <p><strong>Email:</strong> <span className="block truncate">{showroom.email}</span></p>
-      <p><strong>Sr. No.:</strong> {index + 1}</p>
-    </CardContent>
-    <CardFooter className="flex flex-col sm:flex-row justify-start gap-2 pt-2 pb-4 px-4 w-full">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          Modal.confirm({
-            title: 'Edit Showroom',
-            content: `Are you sure you want to edit "${showroom.name}"?`,
-            okText: 'Edit',
-            cancelText: 'Cancel',
-            onOk: () => {
-              setEditingShowroom(showroom);
-              setTimeout(() => {
-                form.setFieldsValue(showroom);
-              }, 0);
-              setIsModalVisible(true);
-            },
-            onCancel() {
-              console.log('Edit cancelled');
-            },
-          });
-        }}
-        disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
-        className="w-full sm:w-auto text-xs py-1 px-2"
-      >
-        <EditOutlined /> Edit
-      </Button>
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => {
-          Modal.confirm({
-            title: 'Delete Showroom',
-            content: `Are you sure you want to delete "${showroom.name}"? This action cannot be undone.`,
-            okText: 'Yes, Delete',
-            okType: 'danger',
-            cancelText: 'Cancel',
-            onOk: async () => {
-              console.log(`Attempting to delete showroom ${showroom.id} by user with role ${role}`);
-              await deleteShowroom(showroom.id);
-            },
-            onCancel() {
-              console.log('Delete cancelled');
-            },
-          });
-        }}
-        disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
-        className="w-full sm:w-auto text-xs py-1 px-2"
-      >
-        <DeleteOutlined /> Delete
-      </Button>
-    </CardFooter>
-  </Card>
-))}
+          {filteredShowrooms.map((showroom, index) => (
+            <Card key={showroom.id} className="flex flex-col h-full overflow-hidden rounded-lg shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium truncate">{showroom.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-grow space-y-2 pt-4 pb-4 overflow-hidden">
+                <p><strong>Location:</strong> <span className="block truncate">{showroom.location}</span></p>
+                <p><strong>Contact Person:</strong> <span className="block truncate">{showroom.contactPerson}</span></p>
+                <p><strong>Phone:</strong> <span className="block truncate">{showroom.phone}</span></p>
+                <p><strong>Email:</strong> <span className="block truncate">{showroom.email}</span></p>
+                <p><strong>Sr. No.:</strong> {index + 1}</p>
+              </CardContent>
+              <CardFooter className="flex flex-col sm:flex-row justify-start gap-2 pt-2 pb-4 px-4 w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    Modal.confirm({
+                      title: 'Edit Showroom',
+                      content: `Are you sure you want to edit "${showroom.name}"?`,
+                      okText: 'Edit',
+                      cancelText: 'Cancel',
+                      onOk: () => {
+                        setEditingShowroom(showroom);
+                        setTimeout(() => {
+                          form.setFieldsValue(showroom);
+                        }, 0);
+                        setIsModalVisible(true);
+                      },
+                      onCancel() {
+                        console.log('Edit cancelled');
+                      },
+                    });
+                  }}
+                  disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
+                  className="w-full sm:w-auto text-xs py-1 px-2"
+                >
+                  <EditOutlined /> Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    Modal.confirm({
+                      title: 'Delete Showroom',
+                      content: `Are you sure you want to delete "${showroom.name}"? This action cannot be undone.`,
+                      okText: 'Yes, Delete',
+                      okType: 'danger',
+                      cancelText: 'Cancel',
+                      onOk: async () => {
+                        console.log(`Attempting to delete showroom ${showroom.id} by user with role ${role}`);
+                        await deleteShowroom(showroom.id);
+                      },
+                      onCancel() {
+                        console.log('Delete cancelled');
+                      },
+                    });
+                  }}
+                  disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && showroom.id !== userShowroom?.id)}
+                  className="w-full sm:w-auto text-xs py-1 px-2"
+                >
+                  <DeleteOutlined /> Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -342,12 +359,12 @@ const Showrooms: React.FC = () => {
           form.resetFields();
         }}
         confirmLoading={isLoading}
-        width={Math.min(window.innerWidth - 40, 600)} // Responsive width
+        width={Math.min(window.innerWidth - 40, 600)}
         okText="Save"
         okButtonProps={{ className: buttonVariants({ variant: 'default' }) }}
         cancelButtonProps={{ className: buttonVariants({ variant: 'outline' }) }}
-        maskClosable={true} // ✅ Close on outside click (default is true, but explicit)
-        destroyOnClose={true} // Clean up when closed
+        maskClosable={true}
+        destroyOnClose={true}
       >
         <Form form={form} layout="vertical" className="space-y-2">
           <Form.Item
@@ -390,6 +407,7 @@ const Showrooms: React.FC = () => {
           </Form.Item>
           {!editingShowroom && (
             <>
+              {/* Optional: Admin creation */}
               {/* <Form.Item
                 name="createAdmin"
                 valuePropName="checked"
@@ -406,8 +424,8 @@ const Showrooms: React.FC = () => {
                 <Checkbox disabled={!hasPermission('manage_users')}>
                   Create a Showroom Admin account
                 </Checkbox>
-              </Form.Item> */}
-              {/* <Form.Item
+              </Form.Item>
+              <Form.Item
                 name="adminEmail"
                 label="Admin Email"
                 rules={[
@@ -441,6 +459,9 @@ const Showrooms: React.FC = () => {
 };
 
 export default Showrooms;
+
+
+
 
 // import React, { useState } from "react";
 // import { Table, Modal, Form, Input, Checkbox, message, Segmented } from "antd";
