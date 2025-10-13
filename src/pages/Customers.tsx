@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Table,
-  Button,
-  Modal,
+   Modal,
   Form,
   Input,
   Row,
@@ -15,6 +14,8 @@ import {
 import customerService from "../services/customerService";
 import { Customer } from "../services/types/customer";
 import { useAuth } from '../context/AuthContexts';
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { Button, buttonVariants } from '../components/ui/button';
 
 const Customers: React.FC = () => {
   const { hasPermission } = useAuth();
@@ -119,8 +120,8 @@ const updateCustomer = async (id: number, data: Customer) => {
       render: (_: any, record: Customer) => (
         <div className="flex gap-2">
           <Button
-            size="small"
-            onClick={() => {
+variant="outline"
+            size="sm"            onClick={() => {
               Modal.confirm({
                 title: "Edit Customer",
                 content: `Are you sure you want to edit "${record.name}"?`,
@@ -139,11 +140,11 @@ const updateCustomer = async (id: number, data: Customer) => {
             }}
             disabled={!hasPermission('edit_customer')}
           >
-            Edit
+            <EditOutlined /> 
           </Button>
           <Button
-            size="small"
-            danger
+              variant="destructive"
+            size="sm"
             onClick={() => {
               Modal.confirm({
                 title: "Are you sure you want to delete this customer?",
@@ -162,7 +163,7 @@ const updateCustomer = async (id: number, data: Customer) => {
             }}
             disabled={!hasPermission('edit_customer')}
           >
-            Delete
+            <DeleteOutlined /> 
           </Button>
         </div>
       ),

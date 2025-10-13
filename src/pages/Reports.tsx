@@ -20,7 +20,6 @@ import {
   DownloadOutlined,
   PrinterOutlined
 } from '@ant-design/icons';
-import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContexts';
 import { 
   BarChart, 
@@ -38,38 +37,46 @@ import {
   Legend
 } from 'recharts';
 import dayjs from 'dayjs';
-import { generateReportFromElement } from '../utils/pdfGenerator';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const Reports: React.FC = () => {
-  const { 
-    products, 
-    showrooms, 
-    employees, 
-    orders, 
-    transfers,
-    getTotalStockValue,
-    salaryRecords 
-  } = useData();
-  const { authState } = useAuth();
+  const { user, role } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<string>('month');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
 
+  // Static data
+  const showrooms = [
+    { id: '1', name: 'Main Branch', location: 'City Center' },
+    { id: '2', name: 'North Branch', location: 'North Area' },
+    { id: '3', name: 'South Branch', location: 'South Area' }
+  ];
+
+  const products = [
+    { id: '1', name: 'Wheat Seeds', category: 'Seeds', price: 50, stock: 100 },
+    { id: '2', name: 'NPK Fertilizer', category: 'Fertilizer', price: 200, stock: 50 },
+    { id: '3', name: 'Pesticide Spray', category: 'Pesticide', price: 150, stock: 75 },
+    { id: '4', name: 'Tractor Parts', category: 'Equipment', price: 500, stock: 25 }
+  ];
+
+  const orders = [
+    { id: '1', showroomId: '1', total: 1500, createdAt: '2024-01-15', items: [{ productId: '1', quantity: 10, price: 50 }] },
+    { id: '2', showroomId: '2', total: 2000, createdAt: '2024-01-20', items: [{ productId: '2', quantity: 5, price: 200 }] },
+    { id: '3', showroomId: '1', total: 1200, createdAt: '2024-01-25', items: [{ productId: '3', quantity: 8, price: 150 }] }
+  ];
+
+  const employees = [
+    { id: '1', name: 'John Doe', showroomId: '1', salary: 25000 },
+    { id: '2', name: 'Jane Smith', showroomId: '2', salary: 30000 },
+    { id: '3', name: 'Bob Wilson', showroomId: '1', salary: 28000 }
+  ];
+
   // Filter data based on user role
-  const userShowrooms = authState.user?.role === 'Admin' 
-    ? showrooms 
-    : showrooms.filter(s => s.id === authState.showroomId);
-
-  const userOrders = authState.user?.role === 'Admin' 
-    ? orders 
-    : orders.filter(o => o.showroomId === authState.showroomId);
-
-  const userEmployees = authState.user?.role === 'Admin' 
-    ? employees 
-    : employees.filter(e => e.showroomId === authState.showroomId);
+  const userShowrooms = role === 'Admin' ? showrooms : showrooms.slice(0, 1);
+  const userOrders = role === 'Admin' ? orders : orders.filter(o => o.showroomId === '1');
+  const userEmployees = role === 'Admin' ? employees : employees.filter(e => e.showroomId === '1');
 
   // Calculate date range based on period
   const getDateRange = () => {
@@ -118,7 +125,7 @@ const Reports: React.FC = () => {
       name: showroom.name.split(' ')[0], // Short name for chart
       sales: totalSales,
       orders: orderCount,
-      stockValue: getTotalStockValue(showroom.id)
+      stockValue: Math.random() * 50000 + 10000 // Static stock value
     };
   });
 
@@ -176,7 +183,7 @@ const Reports: React.FC = () => {
       category: product.category,
       quantitySold: totalQuantity,
       revenue: totalRevenue,
-      stockLeft: Object.values(product.stock).reduce((sum, qty) => sum + qty, 0)
+      stockLeft: product.stock
     };
   })
   .filter(product => product.quantitySold > 0)
@@ -190,12 +197,8 @@ const Reports: React.FC = () => {
   const totalEmployees = userEmployees.length;
   const monthlyPayroll = userEmployees.reduce((sum, emp) => sum + emp.salary, 0);
 
-  const exportToPDF = async () => {
-    try {
-      await generateReportFromElement('reports-dashboard', 'AgriCorp_Report.pdf');
-    } catch (error) {
-      console.error('Failed to export PDF:', error);
-    }
+  const exportToPDF = () => {
+    alert('PDF export functionality would be implemented here');
   };
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c'];

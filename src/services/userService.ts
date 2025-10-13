@@ -24,6 +24,7 @@ export interface RegisterRequest {
   password: string;
   email: string;
   role: string;
+  createdAt: string;
 }
 
 export interface RegisterResponse {
@@ -37,20 +38,37 @@ export interface RegisterResponse {
 const userService = {
   // Get all users
   getAllUsers: async (): Promise<UsersResponse> => {
-    const response = await axiosInstance.get<UsersResponse>('/agri/api/admin/getAllUsers');
-    return response.data;
+    try {
+      const response = await axiosInstance.get<UsersResponse>('/agri/api/admin/getAllUsers');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   },
 
   // Get all employees
   getAllEmployees: async (): Promise<Employee[]> => {
-    const response = await axiosInstance.get<Employee[]>('/agri/api/users/allEmployee');
-    return response.data;
+    try {
+      const response = await axiosInstance.get<Employee[]>('/agri/api/users/allEmployee');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   },
 
   // Register new user
   registerUser: async (userData: RegisterRequest): Promise<RegisterResponse> => {
-    const response = await axiosInstance.post<RegisterResponse>('/agri/api/auth/register', userData);
-    return response.data;
+    try {
+      const response = await axiosInstance.post<RegisterResponse>('/agri/api/auth/register', userData);
+      console.log('User registered successfully:', response.data);
+      return response.data;
+      
+    } catch (error: any) {
+      console.log('User registered error:',error);
+
+      const errorMessage = error.response?.data || error.message || 'Registration failed';
+      throw new Error(errorMessage);
+    }
   }
 };
 

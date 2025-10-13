@@ -238,13 +238,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [stockStores, setStockStores] = useState<StockStore[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
+  const { isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    fetchProducts();
-    fetchShowrooms();
-    fetchCustomers();
-    fetchBills();
-  }, []);
+  // useEffect(() => {
+  //   if (isAuthenticated) {
+  //     fetchProducts();
+  //     fetchShowrooms();
+  //     fetchCustomers();
+  //     fetchBills();
+  //   }
+  // }, [isAuthenticated]);
 
   const fetchProducts = async () => {
     try {
@@ -639,7 +642,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const data = await billService.getAllBills();
       setBills(data);
     } catch (error) {
-      message.error('Failed to fetch bills');
       console.error('Error fetching bills:', error);
     }
   };

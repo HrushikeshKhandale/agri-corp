@@ -90,12 +90,12 @@ const Orders: React.FC = () => {
   }, [hasPermission]);
 
   const userOrders = role === 'ADMIN' ? orders : [];
-
+console.log("issue--",userOrders)
   const filteredOrders = userOrders.filter(order => {
-    const orderNumber = order.orderNumber ?? '';
+    const orderNumber = order.id?.toString() ?? '';
     const customerName = order.customerName ?? '';
-    const customerPhone = order.customerPhone ?? '';
-    const status = order.status ?? '';
+    const customerPhone = order.phoneNumber ?? '';
+    const status = order.status ?? 'Pending';
 
     const matchesSearch = 
       orderNumber.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -118,10 +118,10 @@ const Orders: React.FC = () => {
     },
     {
       title: 'Order #',
-      dataIndex: 'orderNumber',
-      key: 'orderNumber',
+      dataIndex: 'id',
+      key: 'id',
       width: 120,
-      render: (text: string) => <Text strong>{text}</Text>
+      render: (text: number) => <Text strong>#{text}</Text>
     },
     {
       title: 'Customer',
@@ -131,7 +131,11 @@ const Orders: React.FC = () => {
           <div className="font-medium">{record.customerName}</div>
           <div className="text-sm text-gray-500 flex items-center">
             <PhoneOutlined className="mr-1" />
-            {record.customerPhone}
+            {record.phoneNumber || 'N/A'}
+          </div>
+          <div className="text-sm text-gray-500 flex items-center">
+            <HomeOutlined className="mr-1" />
+            {record.deliveryAddress || 'N/A'}
           </div>
         </div>
       ),
@@ -141,14 +145,14 @@ const Orders: React.FC = () => {
       title: 'Items',
       key: 'items',
       render: (_, record: any) => {
-        const items = Array.isArray(record.orderItems) ? record.orderItems : [];
+        const items = Array.isArray(record.items) ? record.items : [];
         return (
           <div>
             <Text>{items.length} items</Text>
             <div className="text-xs text-gray-500">
               {items.slice(0, 2).map((item: any) => {
-                const product = productMap[item.product] || { name: 'Unknown Product' };
-                return product.name;
+                const product = productMap[item.productId] || { name: 'Unknown Product' };
+                return `${product.name} (${item.quantity})`;
               }).join(', ')}
               {items.length > 2 && '...'}
             </div>
@@ -161,14 +165,14 @@ const Orders: React.FC = () => {
       title: 'Amount',
       key: 'amount',
       render: (_, record: any) => {
-        const total = typeof record.total === 'number' ? record.total : 0;
-        const totalGst = typeof record.totalGst === 'number' ? record.totalGst : 0;
+        const items = Array.isArray(record.items) ? record.items : [];
+        const total = items.reduce((sum: number, item: any) => {
+          const product = productMap[item.productId];
+          return sum + (product?.price || 0) * item.quantity;
+        }, 0);
         return (
           <div>
             <div className="font-medium">₹{total.toFixed(2)}</div>
-            <div className="text-xs text-gray-500">
-              GST: ₹{totalGst.toFixed(2)}
-            </div>
           </div>
         );
       },
@@ -176,9 +180,9 @@ const Orders: React.FC = () => {
     },
     {
       title: 'Status',
-      dataIndex: 'status',
       key: 'status',
-      render: (status: string) => {
+      render: (_, record: any) => {
+        const status = record.status || 'Pending';
         const color = status === 'Delivered' ? 'green' : 
                      status === 'Approved' ? 'blue' : 'orange';
         return <Tag color={color}>{status}</Tag>;
@@ -189,16 +193,16 @@ const Orders: React.FC = () => {
       title: 'Showroom',
       key: 'showroom',
       render: (_, record: any) => {
-        const showroomName = showrooms[record.showroom?.id] || 'Unknown Showroom';
-        return showroomName;
+        return 'Main Showroom';
       },
       width: 120
     },
     {
       title: 'Date',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString('en-IN'),
+      key: 'date',
+      render: (_, record: any) => {
+        return new Date().toLocaleDateString('en-IN');
+      },
       width: 100
     },
     {
@@ -315,7 +319,7 @@ const Orders: React.FC = () => {
         deliveryAddress: values.deliveryAddress,
         showroom: { id: values.showroomId },
         orderItems: values.items.map((item: any) => ({
-          product: item.productId,
+          product:{ id: item.productId},
           quantity: item.quantity
         }))
       };

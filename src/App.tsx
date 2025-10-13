@@ -26,6 +26,9 @@ import BillsList from './pages/bill/BillsList';
 import StockManagement from './pages/StockManagement';
 import ErrorBoundary from './ErrorBoundary';
 import ApiTest from './pages/ApiTest';
+import Sections from './pages/Sections';
+import Categories from './pages/Categories';
+import SubCategories from './pages/SubCategories';
 
 // Ant Design theme configuration
 const antdTheme = {
@@ -42,7 +45,11 @@ const antdTheme = {
 
 // Define ProtectedRoute & PublicRoute after AuthProvider is in scope
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth(); // ✅ Use isAuthenticated directly
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -56,7 +63,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth(); // ✅ Use isAuthenticated directly
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -133,6 +144,24 @@ const App = () => {
             <Route path="/api-test" element={
               <ProtectedRoute>
                 <ApiTest />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/stock/sections" element={
+              <ProtectedRoute>
+                <Sections />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/stock/categories" element={
+              <ProtectedRoute>
+                <Categories />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/stock/subcategories" element={
+              <ProtectedRoute>
+                <SubCategories />
               </ProtectedRoute>
             } />
 

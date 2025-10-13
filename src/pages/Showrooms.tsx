@@ -1,5 +1,4 @@
-// src/pages/Showrooms.tsx
-
+ 
 import React, { useState, useEffect } from 'react';
 import { Table, Modal, Form, Input, Checkbox, message, Segmented, Spin } from 'antd';
 import { useAuth } from '../context/AuthContexts';
@@ -164,7 +163,7 @@ const Showrooms: React.FC = () => {
             }}
             disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && record.id !== userShowroom?.id)}
           >
-            <EditOutlined /> Edit
+            <EditOutlined /> 
           </Button>
           <Button
             variant="destructive"
@@ -187,7 +186,7 @@ const Showrooms: React.FC = () => {
             }}
             disabled={!hasPermission('manage_showrooms') || (role !== 'ADMIN' && record.id !== userShowroom?.id)}
           >
-            <DeleteOutlined /> Delete
+            <DeleteOutlined /> 
           </Button>
         </span>
       ),
@@ -241,7 +240,7 @@ const Showrooms: React.FC = () => {
         <h2 className="text-2xl font-semibold">{role === 'ADMIN' ? 'Showrooms' : 'Your Showroom'}</h2>
         <div className="flex gap-2 flex-wrap items-center">
           <Segmented
-            options={['List View', 'Card View']}
+             options={['List View', 'Card View']}
             value={viewMode === 'list' ? 'List View' : 'Card View'}
             onChange={value => setViewMode(value === 'List View' ? 'list' : 'card')}
           />

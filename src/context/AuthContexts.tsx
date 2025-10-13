@@ -62,6 +62,7 @@ interface AuthContextType {
   user: { username: string; role: string } | null; // 👈 Typed for clarity
   role: string | null;
   hasPermission: (permission: string) => boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,6 +71,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<{ username: string; role: string } | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -86,6 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem("user");
       }
     }
+    setIsLoading(false);
   }, []);
 
   const login = async (credentials: { username: string; password: string }): Promise<boolean> => {
@@ -137,7 +140,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isAuthenticated,
       user,
       role,
-      hasPermission
+      hasPermission,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>

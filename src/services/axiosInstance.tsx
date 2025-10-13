@@ -42,7 +42,7 @@ axiosInstance.interceptors.request.use(
 
     const method = config.method?.toUpperCase()?.replace(/[^A-Z]/g, '') || 'UNKNOWN';
     const url = config.url?.replace(/[\r\n\t]/g, '').substring(0, 100) || 'unknown';
-    console.log(`[Request] ${method} ${url}`);
+    // console.log(`[Request] ${method} ${url}`);
     return config;
   },
   (error: AxiosError) => {

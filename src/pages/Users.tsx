@@ -1,11 +1,13 @@
 // src/pages/Users.tsx
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, message, Spin } from 'antd';
+import { Table,  Modal, Form, Input, Select, message, Spin } from 'antd';
 import { useAuth } from '../context/AuthContexts';
 import { useData } from '../context/DataContext';
 import { User } from '../context/AuthContexts'; // Import User interface
 import { Showroom } from '../context/DataContext';
 import userService, { User as ApiUser, RegisterRequest } from '../services/userService';
+import { Button } from '@/components/ui/button';
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 
 const { Option } = Select; // Import Option from antd Select
 
@@ -43,9 +45,10 @@ const Users: React.FC = () => {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: ApiUser) => (
-        <span>
+        <div className="flex gap-2">
           <Button
-            onClick={() => {
+           variant="outline"
+            size="sm"  onClick={() => {
               // Convert ApiUser to User format for editing
               const userForEdit = {
                 id: record.id.toString(),
@@ -63,16 +66,17 @@ const Users: React.FC = () => {
             }}
             disabled={!hasPermission('manage_users')}
           >
-            Edit
+            <EditOutlined/>
+            
           </Button>
           <Button
-            danger
-            onClick={() => deleteUser(record.id.toString())}
+   variant="destructive"
+            size="sm"            onClick={() => deleteUser(record.id.toString())}
             disabled={!hasPermission('manage_users') || record.id.toString() === authState?.user?.id}
           >
-            Delete
+<DeleteOutlined/>            
           </Button>
-        </span>
+        </div>
       ),
     },
   ];
@@ -97,7 +101,8 @@ const handleSubmit = async () => {
         username: values.name,
         password: values.password,
         email: values.email,
-        role: values.role
+        role: values.role,
+        createdAt: new Date().toISOString()
       };
       
       await userService.registerUser(registerData);
@@ -108,25 +113,28 @@ const handleSubmit = async () => {
     setIsModalVisible(false);
     form.resetFields();
     setEditingUser(null);
-  } catch (error) {
-    message.error('Failed to save user');
+  } catch (error: any) {
+    const errorMessage = error.message || 'Failed to save user';
+    message.error(errorMessage);
   }
 };
 
   return (
-    <div className="p-6">
-      <h2>Users</h2>
-      <Button
-        type="primary"
-        onClick={() => {
-          setEditingUser(null);
-          form.resetFields();
-          setIsModalVisible(true);
-        }}
-        disabled={!hasPermission('manage_users')}
-      >
-        Add User
-      </Button>
+    <div className="p-6 bg-white rounded-lg shadow-sm">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold text-gray-800">User Management</h2>
+        <Button
+          size="large"
+          onClick={() => {
+            setEditingUser(null);
+            form.resetFields();
+            setIsModalVisible(true);
+          }}
+          disabled={!hasPermission('manage_users')}
+        >
+          Add New User
+        </Button>
+      </div>
       <Spin spinning={loading}>
         <Table 
           dataSource={apiUsers} 
@@ -134,8 +142,13 @@ const handleSubmit = async () => {
           rowKey="id"
           pagination={{
             pageSize: 10,
-            showTotal: (total) => `Total ${total} users`
+            showTotal: (total) => `Total ${total} users`,
+            showSizeChanger: true,
+            showQuickJumper: true
           }}
+          scroll={{ x: 600 }}
+          className="bg-white rounded-lg shadow-sm"
+          bordered
         />
       </Spin>
       <Modal
@@ -155,7 +168,7 @@ const handleSubmit = async () => {
           <Form.Item
             name="email"
             label="Email"
-            rules={[{ required: true, type: 'email', message: 'Please input a valid email!' }]}
+            // rules={[{ required: true, type: 'email', message: 'Please input a valid email!' }]}
           >
             <Input />
           </Form.Item>

@@ -22,7 +22,17 @@ const billService = {
 
   getAllBills: async (): Promise<Bill[]> => {
     const response = await axiosInstance.get(BASE_URL);
-    return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+    if (typeof response.data === 'string') {
+      // Decode HTML entities before parsing JSON
+      const decodedData = response.data
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+      return JSON.parse(decodedData);
+    }
+    return response.data;
   },
 
   deleteBill: async (id: number): Promise<void> => {

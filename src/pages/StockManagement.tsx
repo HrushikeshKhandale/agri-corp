@@ -12,12 +12,14 @@ const { Option } = Select;
 const { Title } = Typography;
 
 interface StockFormData {
-  inwardDate: string;
-  companyName: string;
+inwardDate: moment.Moment | null;
+    companyName: string;
   productId: number;
   showroomId: number;
   category: string;
   unit: string;
+  type: string;
+  subtype: string;
   inwardPrice: number;
   salePrice: number;
   gst: number;
@@ -47,12 +49,14 @@ const StockManagement = () => {
   }
   
   const [formData, setFormData] = useState<StockFormData>({
-    inwardDate: '',
+    inwardDate: null,
     companyName: '',
     productId: 0,
     showroomId: 0,
     category: '',
     unit: '',
+    type: '',
+    subtype: '',
     inwardPrice: 0,
     salePrice: 0,
     gst: 0,
@@ -139,8 +143,12 @@ const StockManagement = () => {
         if (product) {
           updatedData.category = product.category;
           updatedData.unit = product.unit;
+          updatedData.type = product.type || '';
+          updatedData.subtype = product.subtype || '';
           updatedData.salePrice = product.price;
-          updatedData.gst = product.gst;
+          updatedData.gst = product.gst || 0;
+          updatedData.inwardPrice = product.inwardPrice || 0;
+          updatedData.discount = product.discount || 0;
           updatedData.totalAmount = product.price * updatedData.quantity;
         }
       }
@@ -149,7 +157,7 @@ const StockManagement = () => {
   };
 
   const handleDateChange = (date: moment.Moment | null, dateString: string) => {
-    setFormData(prev => ({ ...prev, inwardDate: dateString }));
+ setFormData(prev => ({ ...prev, inwardDate: date }));
   };
 
   const handleGenerateBarcode = () => {
@@ -164,12 +172,14 @@ const StockManagement = () => {
 
   const resetForm = () => {
     setFormData({
-      inwardDate: '',
+      inwardDate:null,
       companyName: '',
       productId: 0,
       showroomId: 0,
       category: '',
       unit: '',
+      type: '',
+      subtype: '',
       inwardPrice: 0,
       salePrice: 0,
       gst: 0,
@@ -188,12 +198,14 @@ const StockManagement = () => {
     setLoading(true);
     try {
       const stockPayload: StockPayload = {
-        inwardDate: formData.inwardDate,
+        inwardDate: formData.inwardDate ? formData.inwardDate.format('YYYY-MM-DD') : null,
         companyName: formData.companyName,
         product: { id: formData.productId },
         showroom: { id: formData.showroomId },
         category: formData.category,
         unit: formData.unit,
+        type: formData.type,
+        subtype: formData.subtype,
         inwardPrice: formData.inwardPrice,
         salePrice: formData.salePrice,
         gst: formData.gst,
@@ -204,8 +216,9 @@ const StockManagement = () => {
         rack: formData.rack
       };
 
-      const newStock = await stockService.createStock(stockPayload);
-      setStocks(prev => [...prev, newStock]);
+      await stockService.createStock(stockPayload);
+      const updatedStocks = await stockService.getAllStocks();
+      setStocks(updatedStocks);
       resetForm();
       message.success('Stock added successfully');
     } catch (error) {
@@ -217,12 +230,14 @@ const StockManagement = () => {
 
   const handleEditStock = (stock: Stock) => {
     setFormData({
-      inwardDate: stock.inwardDate,
+      inwardDate: stock.inwardDate ? moment(stock.inwardDate) : null,
       companyName: stock.companyName,
       productId: stock.product.id,
       showroomId: stock.showroom.id,
       category: stock.category,
       unit: stock.unit,
+      type: stock.product?.type || '',
+      subtype: stock.product?.subtype || '',
       inwardPrice: stock.inwardPrice,
       salePrice: stock.salePrice,
       gst: stock.gst,
@@ -241,12 +256,14 @@ const StockManagement = () => {
     setLoading(true);
     try {
       const stockPayload: StockPayload = {
-        inwardDate: formData.inwardDate,
+        inwardDate: formData.inwardDate ? formData.inwardDate.format('YYYY-MM-DD') : null,
         companyName: formData.companyName,
         product: { id: formData.productId },
         showroom: { id: formData.showroomId },
         category: formData.category,
         unit: formData.unit,
+        type: formData.type,
+        subtype: formData.subtype,
         inwardPrice: formData.inwardPrice,
         salePrice: formData.salePrice,
         gst: formData.gst,
@@ -335,6 +352,20 @@ const StockManagement = () => {
       dataIndex: 'unit', 
       key: 'unit',
       width: 80
+    },
+    { 
+      title: 'Type', 
+      dataIndex: 'product', 
+      key: 'type',
+      width: 100,
+      render: (product: any) => product?.type || 'N/A'
+    },
+    { 
+      title: 'Subtype', 
+      dataIndex: 'product', 
+      key: 'subtype',
+      width: 100,
+      render: (product: any) => product?.subtype || 'N/A'
     },
     { 
       title: 'Inward Price', 
@@ -437,8 +468,8 @@ const StockManagement = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8} lg={6}>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Inward Date</label>
-            <DatePicker
-              value={formData.inwardDate ? moment(formData.inwardDate, 'YYYY-MM-DD') : null}
+                      <DatePicker
+              value={formData.inwardDate}
               onChange={handleDateChange}
               style={{ width: '100%' }}
               placeholder="Select date"
@@ -503,6 +534,26 @@ const StockManagement = () => {
             <Input
               name="unit"
               value={formData.unit}
+              readOnly
+              style={{ backgroundColor: '#f5f5f5' }}
+            />
+          </Col>
+          
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Type</label>
+            <Input
+              name="type"
+              value={formData.type}
+              readOnly
+              style={{ backgroundColor: '#f5f5f5' }}
+            />
+          </Col>
+          
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Subtype</label>
+            <Input
+              name="subtype"
+              value={formData.subtype}
               readOnly
               style={{ backgroundColor: '#f5f5f5' }}
             />

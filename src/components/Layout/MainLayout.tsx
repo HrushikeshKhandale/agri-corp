@@ -15,7 +15,11 @@ import {
   MenuOutlined,
   BilibiliOutlined,
   ManOutlined,
-  UserAddOutlined
+  UserAddOutlined,
+  CloseOutlined,
+  BranchesOutlined,
+  ApartmentOutlined,
+  AppstoreOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContexts';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -74,12 +78,30 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         label: 'Stock',
         permission: 'view_products',
         children: [
+           {
+            key: '/stock/sections',
+            icon: <AppstoreOutlined />,
+            label: 'Sections',
+            permission: 'view_products'
+          },
           {
+            key: '/stock/categories',
+            icon: <ApartmentOutlined />,
+            label: 'Categories',
+            permission: 'view_products'
+          },
+          {
+            key: '/stock/subcategories',
+            icon: <BranchesOutlined />,
+            label: 'SubCategories',
+            permission: 'view_products'
+          },{
             key: '/stock/products',
             icon: <ShoppingOutlined />,
             label: 'Products',
             permission: 'view_products'
           },
+         
           {
             key: '/stock/add-stocks',
             icon: <ManOutlined />,
@@ -237,37 +259,38 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </Content>
       ) : (
         <>
-          {!isMobile ? (
-            <Sider
-              trigger={null}
-              collapsible
-              collapsed={collapsed}
-              width={256}
-              theme="light"
-              style={{
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                zIndex: 1000,
-                background: '#fff',
-                borderRight: '1px solid #f0f0f0'
-              }}
-            >
-              {renderSidebarContent()}
-            </Sider>
-          ) : (
-            <Drawer
-              placement="left"
-              closable={false}
-              onClose={() => setDrawerVisible(false)}
-              visible={drawerVisible}
-              bodyStyle={{ padding: 0 }}
-              width={256}
-            >
-              {renderSidebarContent()}
-            </Drawer>
-          )}
+       {!isMobile ? (
+  <Sider
+    trigger={null}
+    collapsible
+    collapsed={collapsed}
+    width={256}
+    theme="light"
+    style={{
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      zIndex: 1000,
+      background: '#fff',
+      borderRight: '1px solid #f0f0f0'
+    }}
+  >
+    {renderSidebarContent()}
+  </Sider>
+) : (
+  <Drawer
+    placement="left"
+    closable={true}
+    onClose={() => setDrawerVisible(false)}
+    open={drawerVisible}
+    bodyStyle={{ padding: 0 }}
+    width={256}
+    title="AgriCorp"
+  >
+    {renderSidebarContent()}
+  </Drawer>
+)}
 
           <Layout style={{ marginLeft: !isMobile ? siderWidth : 0, transition: 'margin-left 0.2s' }}>
             <Header
@@ -278,7 +301,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 right: 0,
                 height: 64,
                 background: '#fff',
-                zIndex: 1001,
+                zIndex: 2,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -288,17 +311,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               }}
             >
               <div>
-                <Button
-                  type="text"
-                  icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuOutlined /> : <MenuOutlined />)}
-                  onClick={() => {
-                    if (isMobile) {
-                      setDrawerVisible(true);
-                    } else {
-                      setCollapsed(!collapsed);
-                    }
-                  }}
-                />
+               <Button
+  type="text"
+  icon={<MenuOutlined />}
+  onClick={() => {
+    if (isMobile) {
+      setDrawerVisible(true);
+    } else {
+      setCollapsed(!collapsed);
+    }
+  }}
+/>
               </div>
 
               <div className="flex items-center space-x-4">

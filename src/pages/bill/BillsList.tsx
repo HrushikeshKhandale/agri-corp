@@ -10,7 +10,8 @@ import {
   Divider,
   message,
   Segmented,
-  Popconfirm
+  Popconfirm,
+  Tabs
 } from 'antd';
 import {
   EyeOutlined,
@@ -39,17 +40,40 @@ const BillsList: React.FC = () => {
     fetchBills();
   }, []);
 
-  const fetchBills = async () => {
-    setLoading(true);
-    try {
-      const data = await billService.getAllBills();
-      setBills(data);
-    } catch (error) {
-      message.error('Failed to fetch bills');
-    } finally {
-      setLoading(false);
+// Add this validation function at the top of the file
+const isValidBill = (bill: BillResponse): boolean => {
+  return !!(
+    bill &&
+    bill.id &&
+    bill.customerName &&
+    Array.isArray(bill.items) &&
+    typeof bill.total === 'number'
+  );
+};
+
+// Update the fetchBills function
+const fetchBills = async () => {
+  setLoading(true);
+  try {
+    const data = await billService.getAllBills();
+    // Filter out any invalid bill data
+    const validBills = data.filter(isValidBill);
+    if (validBills.length !== data.length) {
+      console.warn('Some bills were filtered out due to invalid data');
     }
-  };
+    setBills(validBills);
+  } catch (error) {
+    console.error("Failed to fetch bills:", error);
+    message.error('Failed to load bills');
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Update the render method for amount values to handle potential null/undefined
+const formatAmount = (amount: number | null | undefined): string => {
+  return amount ? `₹${Number(amount).toFixed(2)}` : '₹0.00';
+};
 
   const handleDeleteBill = async (id: number) => {
     try {
@@ -140,23 +164,23 @@ const BillsList: React.FC = () => {
       render: (_, record: BillResponse) => `${record.village}, ${record.district}`
     },
     {
-      title: 'Total',
-      dataIndex: 'total',
-      key: 'total',
-      render: (amount: number) => `₹${Number(amount).toFixed(2)}`
-    },
-    {
-      title: 'Paid',
-      dataIndex: 'amountPayingNow',
-      key: 'amountPayingNow',
-      render: (amount: number) => `₹${Number(amount).toFixed(2)}`
-    },
-    {
-      title: 'Unpaid',
-      dataIndex: 'unpaidAmount',
-      key: 'unpaidAmount',
-      render: (amount: number) => `₹${Number(amount).toFixed(2)}`
-    },
+  title: 'Total',
+  dataIndex: 'total',
+  key: 'total',
+  render: (amount: number) => formatAmount(amount)
+},
+{
+  title: 'Paid',
+  dataIndex: 'amountPayingNow',
+  key: 'amountPayingNow',
+  render: (amount: number) => formatAmount(amount)
+},
+{
+  title: 'Unpaid',
+  dataIndex: 'unpaidAmount',
+  key: 'unpaidAmount',
+  render: (amount: number) => formatAmount(amount)
+},
     {
       title: 'Actions',
       key: 'actions',
@@ -227,68 +251,212 @@ const BillsList: React.FC = () => {
           }}
         />
       </div>
-      {viewMode === 'list' ? (
-        <Table
-          dataSource={bills}
-          rowKey="id"
-          columns={columns}
-          scroll={{ x: 1000 }}
-          pagination={{ pageSize: 10 }}
-          loading={loading}
-        />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {bills.map((bill) => (
-            <UICard key={bill.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle>Bill #{bill.id}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p><strong>Customer:</strong> {bill.customerName}</p>
-                <p><strong>Phone:</strong> {bill.contact}</p>
-                <p><strong>Location:</strong> {bill.village}, {bill.district}</p>
-                <p><strong>Total:</strong> ₹{Number(bill.total).toFixed(2)}</p>
-                <p><strong>Paid:</strong> ₹{Number(bill.amountPayingNow).toFixed(2)}</p>
-                <p style={{ color: Number(bill.unpaidAmount) > 0 ? 'red' : 'green' }}>
-                  <strong>Unpaid:</strong> ₹{Number(bill.unpaidAmount).toFixed(2)}
-                </p>
-              </CardContent>
-              <CardFooter className="flex justify-end gap-2">
-                <Tooltip title="Download PDF">
-                  <UIButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDownloadPDF(bill)}
-                  >
-                    <DownloadOutlined />
-                  </UIButton>
-                </Tooltip>
-                <Tooltip title="Print Bill">
-                  <UIButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePrint(bill)}
-                  >
-                    <PrinterOutlined />
-                  </UIButton>
-                </Tooltip>
-                <Tooltip title="View Bill">
-                  <UIButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedBill(bill);
-                      setViewBillModal(true);
-                    }}
-                  >
-                    <EyeOutlined />
-                  </UIButton>
-                </Tooltip>
-              </CardFooter>
-            </UICard>
-          ))}
-        </div>
-      )}
+      <Tabs defaultActiveKey="final" items={[
+        {
+          key: 'quotation',
+          label: 'Quotation Bills',
+          children: (
+            viewMode === 'list' ? (
+              <Table
+                dataSource={bills}
+                rowKey="id"
+                columns={columns}
+                scroll={{ x: 1000 }}
+                pagination={{ pageSize: 10 }}
+                loading={loading}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {bills.map((bill) => (
+                  <UICard key={bill.id} className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle>Bill #{bill.id}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <p><strong>Customer:</strong> {bill.customerName}</p>
+                      <p><strong>Phone:</strong> {bill.contact}</p>
+                      <p><strong>Location:</strong> {bill.village}, {bill.district}</p>
+                      <p><strong>Total:</strong> ₹{Number(bill.total).toFixed(2)}</p>
+                      <p><strong>Paid:</strong> ₹{Number(bill.amountPayingNow).toFixed(2)}</p>
+                      <p style={{ color: Number(bill.unpaidAmount) > 0 ? 'red' : 'green' }}>
+                        <strong>Unpaid:</strong> ₹{Number(bill.unpaidAmount).toFixed(2)}
+                      </p>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Tooltip title="Download PDF">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(bill)}
+                        >
+                          <DownloadOutlined />
+                        </UIButton>
+                      </Tooltip>
+                      <Tooltip title="Print Bill">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrint(bill)}
+                        >
+                          <PrinterOutlined />
+                        </UIButton>
+                      </Tooltip>
+                      <Tooltip title="View Bill">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBill(bill);
+                            setViewBillModal(true);
+                          }}
+                        >
+                          <EyeOutlined />
+                        </UIButton>
+                      </Tooltip>
+                    </CardFooter>
+                  </UICard>
+                ))}
+              </div>
+            )
+          )
+        },
+        {
+          key: 'provisional',
+          label: 'Provisional Bills',
+          children: (
+            viewMode === 'list' ? (
+              <Table
+                dataSource={bills}
+                rowKey="id"
+                columns={columns}
+                scroll={{ x: 1000 }}
+                pagination={{ pageSize: 10 }}
+                loading={loading}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {bills.map((bill) => (
+                  <UICard key={bill.id} className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle>Bill #{bill.id}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <p><strong>Customer:</strong> {bill.customerName}</p>
+                      <p><strong>Phone:</strong> {bill.contact}</p>
+                      <p><strong>Location:</strong> {bill.village}, {bill.district}</p>
+                      <p><strong>Total:</strong> ₹{Number(bill.total).toFixed(2)}</p>
+                      <p><strong>Paid:</strong> ₹{Number(bill.amountPayingNow).toFixed(2)}</p>
+                      <p style={{ color: Number(bill.unpaidAmount) > 0 ? 'red' : 'green' }}>
+                        <strong>Unpaid:</strong> ₹{Number(bill.unpaidAmount).toFixed(2)}
+                      </p>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Tooltip title="Download PDF">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(bill)}
+                        >
+                          <DownloadOutlined />
+                        </UIButton>
+                      </Tooltip>
+                      <Tooltip title="Print Bill">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrint(bill)}
+                        >
+                          <PrinterOutlined />
+                        </UIButton>
+                      </Tooltip>
+                      <Tooltip title="View Bill">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBill(bill);
+                            setViewBillModal(true);
+                          }}
+                        >
+                          <EyeOutlined />
+                        </UIButton>
+                      </Tooltip>
+                    </CardFooter>
+                  </UICard>
+                ))}
+              </div>
+            )
+          )
+        },
+        {
+          key: 'final',
+          label: 'Final Bills',
+          children: (
+            viewMode === 'list' ? (
+              <Table
+                dataSource={bills}
+                rowKey="id"
+                columns={columns}
+                scroll={{ x: 1000 }}
+                pagination={{ pageSize: 10 }}
+                loading={loading}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {bills.map((bill) => (
+                  <UICard key={bill.id} className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle>Bill #{bill.id}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <p><strong>Customer:</strong> {bill.customerName}</p>
+                      <p><strong>Phone:</strong> {bill.contact}</p>
+                      <p><strong>Location:</strong> {bill.village}, {bill.district}</p>
+                      <p><strong>Total:</strong> ₹{Number(bill.total).toFixed(2)}</p>
+                      <p><strong>Paid:</strong> ₹{Number(bill.amountPayingNow).toFixed(2)}</p>
+                      <p style={{ color: Number(bill.unpaidAmount) > 0 ? 'red' : 'green' }}>
+                        <strong>Unpaid:</strong> ₹{Number(bill.unpaidAmount).toFixed(2)}
+                      </p>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Tooltip title="Download PDF">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(bill)}
+                        >
+                          <DownloadOutlined />
+                        </UIButton>
+                      </Tooltip>
+                      <Tooltip title="Print Bill">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrint(bill)}
+                        >
+                          <PrinterOutlined />
+                        </UIButton>
+                      </Tooltip>
+                      <Tooltip title="View Bill">
+                        <UIButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBill(bill);
+                            setViewBillModal(true);
+                          }}
+                        >
+                          <EyeOutlined />
+                        </UIButton>
+                      </Tooltip>
+                    </CardFooter>
+                  </UICard>
+                ))}
+              </div>
+            )
+          )
+        }
+      ]} />
       <Modal
         title={<span style={{ fontSize: '18px', fontWeight: 600 }}>{`Bill Details - #${selectedBill?.id}`}</span>}
         open={viewBillModal}
@@ -324,47 +492,63 @@ const BillsList: React.FC = () => {
                 <Card title="Bill Information" size="small" bordered={false}>
                   <p><strong>Bill ID:</strong> {selectedBill.id}</p>
                   <p><strong>Items Count:</strong> {selectedBill.items.length}</p>
+                  <p><strong>Showroom:</strong> {selectedBill.showroom || 'Main Showroom'}</p>
                 </Card>
               </Col>
             </Row>
             <Divider orientation="left" plain>Products</Divider>
             <Table
               dataSource={selectedBill.items}
-              rowKey="id"
+              rowKey={(record, index) => index}
               pagination={false}
-              size="middle"
+              size="small"
               bordered
+              scroll={{ x: 1200 }}
               columns={[
-                { title: 'Company', dataIndex: 'companyName', key: 'companyName' },
-                { title: 'Category', dataIndex: 'category', key: 'category' },
-                { title: 'Type', dataIndex: 'type', key: 'type' },
+                { title: 'Company', dataIndex: 'companyName', key: 'companyName', width: 120 },
+                { title: 'Category', dataIndex: 'category', key: 'category', width: 100 },
+                { title: 'Type', dataIndex: 'type', key: 'type', width: 100 },
+                { title: 'Subtype', dataIndex: 'subtype', key: 'subtype', width: 100 },
+                { title: 'Unit', dataIndex: 'unit', key: 'unit', width: 60 },
                 {
-                  title: 'Quantity',
-                  key: 'quantity',
-                  render: (_, item) => `${item.quantity} ${item.unit}`
-                },
-                {
-                  title: 'Sale Price (₹)',
-                  dataIndex: 'salePrice',
-                  key: 'salePrice',
+                  title: 'Inward Price',
+                  dataIndex: 'inwardPrice',
+                  key: 'inwardPrice',
+                  width: 100,
                   render: (price: number) => `₹${price.toFixed(2)}`
                 },
                 {
-                  title: 'GST (%)',
+                  title: 'Sale Price',
+                  dataIndex: 'salePrice',
+                  key: 'salePrice',
+                  width: 100,
+                  render: (price: number) => `₹${price.toFixed(2)}`
+                },
+                {
+                  title: 'GST %',
                   dataIndex: 'gst',
                   key: 'gst',
+                  width: 70,
                   render: (gst: number) => `${gst}%`
                 },
                 {
-                  title: 'Discount',
+                  title: 'Discount %',
                   dataIndex: 'discount',
                   key: 'discount',
+                  width: 80,
                   render: (discount: number) => `${discount}%`
                 },
                 {
-                  title: 'Total (₹)',
+                  title: 'Quantity',
+                  dataIndex: 'quantity',
+                  key: 'quantity',
+                  width: 80
+                },
+                {
+                  title: 'Total Amount',
                   dataIndex: 'totalAmount',
                   key: 'totalAmount',
+                  width: 120,
                   render: (value: number) => `₹${value.toFixed(2)}`
                 }
               ]}
