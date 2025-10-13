@@ -26,9 +26,15 @@ const Sections: React.FC = () => {
     try {
       setLoading(true);
       const data = await sectionService.getAll();
-      setSections(data);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch sections', variant: 'destructive' });
+      setSections(data || []);
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        setSections([]);
+        toast({ title: 'Info', description: 'No sections found' });
+      } else {
+        setSections([]);
+        toast({ title: 'Error', description: 'Failed to fetch sections', variant: 'destructive' });
+      }
     } finally {
       setLoading(false);
     }
@@ -38,18 +44,30 @@ const Sections: React.FC = () => {
     e.preventDefault();
     try {
       if (editingSection) {
-        await sectionService.update(editingSection.id, formData);
-        toast({ title: 'Success', description: 'Section updated successfully' });
+        const result = await sectionService.update(editingSection.id, formData);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'Section updated successfully' });
+        }
       } else {
-        await sectionService.create(formData);
-        toast({ title: 'Success', description: 'Section created successfully' });
+        const result = await sectionService.create(formData);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'Section created successfully' });
+        }
       }
       setDialogOpen(false);
       setFormData({ name: '' });
       setEditingSection(null);
       fetchSections();
-    } catch (error) {
-      toast({ title: 'Error', description: 'Operation failed', variant: 'destructive' });
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        toast({ title: 'Success', description: editingSection ? 'Section updated successfully' : 'Section created successfully' });
+        setDialogOpen(false);
+        setFormData({ name: '' });
+        setEditingSection(null);
+        fetchSections();
+      } else {
+        toast({ title: 'Error', description: 'Operation failed', variant: 'destructive' });
+      }
     }
   };
 
@@ -62,11 +80,18 @@ const Sections: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this section?')) {
       try {
-        await sectionService.delete(id);
-        toast({ title: 'Success', description: 'Section deleted successfully' });
+        const result = await sectionService.delete(id);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'Section deleted successfully' });
+        }
         fetchSections();
-      } catch (error) {
-        toast({ title: 'Error', description: 'Failed to delete section', variant: 'destructive' });
+      } catch (error: any) {
+        if (error?.status === 204 || error?.response?.status === 204) {
+          toast({ title: 'Success', description: 'Section deleted successfully' });
+          fetchSections();
+        } else {
+          toast({ title: 'Error', description: 'Failed to delete section', variant: 'destructive' });
+        }
       }
     }
   };
@@ -127,22 +152,30 @@ const Sections: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sections.map((section) => (
-                  <TableRow key={section.id}>
-                    <TableCell>{section.id}</TableCell>
-                    <TableCell>{section.name}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(section)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(section.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {sections && sections.length > 0 ? (
+                  sections.map((section) => (
+                    <TableRow key={section.id}>
+                      <TableCell>{section.id}</TableCell>
+                      <TableCell>{section.name}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(section)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(section.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-4">
+                      No sections found
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           )}

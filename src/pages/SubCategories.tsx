@@ -31,9 +31,15 @@ const SubCategories: React.FC = () => {
     try {
       setLoading(true);
       const data = await subcategoryService.getAll();
-      setSubCategories(data);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch subcategories', variant: 'destructive' });
+      setSubCategories(data || []);
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        setSubCategories([]);
+        toast({ title: 'Info', description: 'No subcategories found' });
+      } else {
+        setSubCategories([]);
+        toast({ title: 'Error', description: 'Failed to fetch subcategories', variant: 'destructive' });
+      }
     } finally {
       setLoading(false);
     }
@@ -42,9 +48,14 @@ const SubCategories: React.FC = () => {
   const fetchCategories = async () => {
     try {
       const data = await categoryService.getAll();
-      setCategories(data);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch categories', variant: 'destructive' });
+      setCategories(data || []);
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        setCategories([]);
+      } else {
+        setCategories([]);
+        toast({ title: 'Error', description: 'Failed to fetch categories', variant: 'destructive' });
+      }
     }
   };
 
@@ -57,18 +68,30 @@ const SubCategories: React.FC = () => {
       };
 
       if (editingSubCategory) {
-        await subcategoryService.update(editingSubCategory.id, { name: formData.name });
-        toast({ title: 'Success', description: 'SubCategory updated successfully' });
+        const result = await subcategoryService.update(editingSubCategory.id, { name: formData.name });
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'SubCategory updated successfully' });
+        }
       } else {
-        await subcategoryService.create(payload);
-        toast({ title: 'Success', description: 'SubCategory created successfully' });
+        const result = await subcategoryService.create(payload);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'SubCategory created successfully' });
+        }
       }
       setDialogOpen(false);
       setFormData({ name: '', categoryId: '' });
       setEditingSubCategory(null);
       fetchSubCategories();
-    } catch (error) {
-      toast({ title: 'Error', description: 'Operation failed', variant: 'destructive' });
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        toast({ title: 'Success', description: editingSubCategory ? 'SubCategory updated successfully' : 'SubCategory created successfully' });
+        setDialogOpen(false);
+        setFormData({ name: '', categoryId: '' });
+        setEditingSubCategory(null);
+        fetchSubCategories();
+      } else {
+        toast({ title: 'Error', description: 'Operation failed', variant: 'destructive' });
+      }
     }
   };
 
@@ -84,11 +107,18 @@ const SubCategories: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this subcategory?')) {
       try {
-        await subcategoryService.delete(id);
-        toast({ title: 'Success', description: 'SubCategory deleted successfully' });
+        const result = await subcategoryService.delete(id);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'SubCategory deleted successfully' });
+        }
         fetchSubCategories();
-      } catch (error) {
-        toast({ title: 'Error', description: 'Failed to delete subcategory', variant: 'destructive' });
+      } catch (error: any) {
+        if (error?.status === 204 || error?.response?.status === 204) {
+          toast({ title: 'Success', description: 'SubCategory deleted successfully' });
+          fetchSubCategories();
+        } else {
+          toast({ title: 'Error', description: 'Failed to delete subcategory', variant: 'destructive' });
+        }
       }
     }
   };
@@ -132,11 +162,17 @@ const SubCategories: React.FC = () => {
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
+                        {categories && categories.length > 0 ? (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>
+                            No categories available
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -167,23 +203,31 @@ const SubCategories: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subcategories.map((subcategory) => (
-                  <TableRow key={subcategory.id}>
-                    <TableCell>{subcategory.id}</TableCell>
-                    <TableCell>{subcategory.name}</TableCell>
-                    <TableCell>{subcategory.category.name}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(subcategory)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(subcategory.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {subcategories && subcategories.length > 0 ? (
+                  subcategories.map((subcategory) => (
+                    <TableRow key={subcategory.id}>
+                      <TableCell>{subcategory.id}</TableCell>
+                      <TableCell>{subcategory.name}</TableCell>
+                      <TableCell>{subcategory.category?.name || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(subcategory)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(subcategory.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4">
+                      No subcategories found
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           )}

@@ -1,7 +1,7 @@
 import axiosInstance from './axiosInstance';
 import { SubCategory, CreateSubCategoryRequest, UpdateSubCategoryRequest } from './types/subcategory';
 
-const API_BASE = '/api/subcategories';
+const API_BASE = '/agri/api/subcategories';
 
 export const subcategoryService = {
   create: async (data: CreateSubCategoryRequest): Promise<SubCategory> => {

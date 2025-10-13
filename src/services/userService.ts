@@ -69,6 +69,27 @@ const userService = {
       const errorMessage = error.response?.data || error.message || 'Registration failed';
       throw new Error(errorMessage);
     }
+  },
+
+  // Update user
+  updateUser: async (id: number, userData: Partial<RegisterRequest>): Promise<User> => {
+    try {
+      const response = await axiosInstance.put<User>(`/agri/api/admin/users/${id}`, userData);
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data || error.message || 'Update failed';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Delete user
+  deleteUser: async (id: number): Promise<void> => {
+    try {
+      await axiosInstance.delete(`/agri/api/admin/users/${id}`);
+    } catch (error: any) {
+      const errorMessage = error.response?.data || error.message || 'Delete failed';
+      throw new Error(errorMessage);
+    }
   }
 };
 

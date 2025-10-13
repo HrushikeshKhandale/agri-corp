@@ -4,7 +4,6 @@ import {
   Button, 
   Input, 
   Select, 
-  Space, 
   Typography, 
   Card, 
   Tag, 
@@ -25,8 +24,6 @@ import {
   PhoneOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
-import { useAuth } from '../context/AuthContexts';
-import { generateOrderPDF } from '../utils/pdfGenerator';
 import orderService from '../services/orderService';
 import showroomService from '../services/showroomService';
 import productService, { Product } from '../services/productService';
@@ -35,7 +32,6 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const Orders: React.FC = () => {
-  const { role, hasPermission } = useAuth();
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -54,44 +50,38 @@ const Orders: React.FC = () => {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const ordersData = await orderService.getAllOrders();
-        setOrders(ordersData);
+    fetchData();
+  }, []);
 
-        const showroomsData = await showroomService.getAllShowrooms();
-        const showroomMap = showroomsData.reduce((acc: any, showroom: any) => {
-          acc[showroom.id] = showroom.name;
-          return acc;
-        }, {});
-        setShowrooms(showroomMap);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const ordersData = await orderService.getAllOrders();
+      setOrders(ordersData);
 
-        const productsData = await productService.getAllProducts();
-        setProducts(productsData);
-        const productMapping = productsData.reduce((acc: any, product: Product) => {
-          acc[product.id!] = product;
-          return acc;
-        }, {});
-        setProductMap(productMapping);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-        message.error('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
+      const showroomsData = await showroomService.getAllShowrooms();
+      const showroomMap = showroomsData.reduce((acc: any, showroom: any) => {
+        acc[showroom.id] = showroom.name;
+        return acc;
+      }, {});
+      setShowrooms(showroomMap);
 
-    if (hasPermission('view_orders')) {
-      fetchData();
-    } else {
+      const productsData = await productService.getAllProducts();
+      setProducts(productsData);
+      const productMapping = productsData.reduce((acc: any, product: Product) => {
+        acc[product.id!] = product;
+        return acc;
+      }, {});
+      setProductMap(productMapping);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      message.error('Failed to load data');
+    } finally {
       setLoading(false);
     }
-  }, [hasPermission]);
+  };
 
-  const userOrders = role === 'ADMIN' ? orders : [];
-console.log("issue--",userOrders)
-  const filteredOrders = userOrders.filter(order => {
+  const filteredOrders = orders.filter(order => {
     const orderNumber = order.id?.toString() ?? '';
     const customerName = order.customerName ?? '';
     const customerPhone = order.phoneNumber ?? '';
@@ -151,7 +141,7 @@ console.log("issue--",userOrders)
             <Text>{items.length} items</Text>
             <div className="text-xs text-gray-500">
               {items.slice(0, 2).map((item: any) => {
-                const product = productMap[item.productId] || { name: 'Unknown Product' };
+                const product = productMap[item.product?.id] || { name: 'Unknown Product' };
                 return `${product.name} (${item.quantity})`;
               }).join(', ')}
               {items.length > 2 && '...'}
@@ -165,9 +155,9 @@ console.log("issue--",userOrders)
       title: 'Amount',
       key: 'amount',
       render: (_, record: any) => {
-        const items = Array.isArray(record.items) ? record.items : [];
+        const items = Array.isArray(record.orderItems) ? record.orderItems : [];
         const total = items.reduce((sum: number, item: any) => {
-          const product = productMap[item.productId];
+          const product = productMap[item.product?.id];
           return sum + (product?.price || 0) * item.quantity;
         }, 0);
         return (
@@ -193,7 +183,7 @@ console.log("issue--",userOrders)
       title: 'Showroom',
       key: 'showroom',
       render: (_, record: any) => {
-        return 'Main Showroom';
+        return showrooms[record.showroom?.id] || 'Unknown';
       },
       width: 120
     },
@@ -201,7 +191,7 @@ console.log("issue--",userOrders)
       title: 'Date',
       key: 'date',
       render: (_, record: any) => {
-        return new Date().toLocaleDateString('en-IN');
+        return record.createdAt ? new Date(record.createdAt).toLocaleDateString('en-IN') : 'N/A';
       },
       width: 100
     },
@@ -222,7 +212,7 @@ console.log("issue--",userOrders)
             onClick={() => printOrder(record)}
             title="Print Order"
           />
-          {hasPermission('manage_orders') && record.status === 'Pending' && (
+          {record.status === 'Pending' && (
             <Button
               size="small"
               type="primary"
@@ -231,15 +221,13 @@ console.log("issue--",userOrders)
               Approve
             </Button>
           )}
-          {hasPermission('manage_orders') && (
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => deleteOrder(record.id)}
-              title="Delete Order"
-            />
-          )}
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => deleteOrder(record.id)}
+            title="Delete Order"
+          />
         </div>
       ),
       width: 150
@@ -251,33 +239,110 @@ console.log("issue--",userOrders)
     setViewOrderModal(true);
   };
 
-  const printOrder = async (order: any) => {
-    try {
-      const companyInfo = {
-        companyName: 'AgriCorp',
-        address: '123 Agriculture Hub, Farm City, State - 123456',
-        gstNumber: '22AAAAA0000A1Z5'
-      };
-      await generateOrderPDF(order, companyInfo);
-      message.success('PDF generated successfully!');
-    } catch (error) {
-      message.error('Failed to generate PDF');
-    }
+  const printOrder = (order: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const items = Array.isArray(order.orderItems) ? order.orderItems : [];
+    const total = items.reduce((sum: number, item: any) => {
+      const product = productMap[item.product?.id];
+      return sum + (product?.price || 0) * item.quantity;
+    }, 0);
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Order Invoice</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .company-name { font-size: 24px; font-weight: bold; }
+          .order-info { display: flex; justify-content: space-between; margin: 20px 0; }
+          .customer-info, .order-details { width: 45%; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .total { text-align: right; font-weight: bold; font-size: 18px; }
+          .footer { text-align: center; margin-top: 30px; font-style: italic; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">AgriCorp</div>
+          <div>123 Agriculture Hub, Farm City, State - 123456</div>
+          <div>GST: 22AAAAA0000A1Z5</div>
+        </div>
+        
+        <h2 style="text-align: center;">ORDER INVOICE</h2>
+        
+        <div class="order-info">
+          <div class="customer-info">
+            <h3>Customer Information</h3>
+            <p><strong>Name:</strong> ${order.customerName}</p>
+            <p><strong>Phone:</strong> ${order.phoneNumber}</p>
+            <p><strong>Address:</strong> ${order.deliveryAddress}</p>
+          </div>
+          <div class="order-details">
+            <h3>Order Details</h3>
+            <p><strong>Order #:</strong> ${order.id}</p>
+            <p><strong>Status:</strong> ${order.status || 'Pending'}</p>
+            <p><strong>Date:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN') : 'N/A'}</p>
+            <p><strong>Showroom:</strong> ${showrooms[order.showroom?.id] || 'Unknown'}</p>
+          </div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Quantity</th>
+              <th>Unit Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item: any) => {
+              const product = productMap[item.product?.id] || { name: 'Unknown Product', price: 0 };
+              const itemTotal = product.price * item.quantity;
+              return `
+                <tr>
+                  <td>${product.name}</td>
+                  <td>${item.quantity}</td>
+                  <td>₹${product.price}</td>
+                  <td>₹${itemTotal.toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+        
+        <div class="total">
+          Total Amount: ₹${total.toFixed(2)}
+        </div>
+        
+        <div class="footer">
+          <p>Thank you for your business!</p>
+          <p>This is a computer generated invoice.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
   };
 
-  const updateOrderStatus = (orderId: number, status: 'Approved' | 'Delivered') => {
-    const updatePayload = { status };
-
-    orderService.updateOrder(orderId, updatePayload)
-      .then(() => {
-        message.success(`Order ${orderId} status updated to ${status}`);
-        return orderService.getAllOrders();
-      })
-      .then(data => setOrders(data))
-      .catch(error => {
-        message.error('Failed to update order');
-        console.error('Update order error:', error);
-      });
+  const updateOrderStatus = async (orderId: number, status: 'Approved' | 'Delivered') => {
+    try {
+      await orderService.updateOrder(orderId, { status } as any);
+      message.success(`Order ${orderId} status updated to ${status}`);
+      fetchData();
+    } catch (error) {
+      message.error('Failed to update order');
+      console.error('Update order error:', error);
+    }
   };
 
   const handleCreateOrder = () => {
@@ -300,8 +365,7 @@ console.log("issue--",userOrders)
         try {
           await orderService.deleteOrder(orderId);
           message.success('Order deleted successfully!');
-          const updatedOrders = await orderService.getAllOrders();
-          setOrders(updatedOrders);
+          fetchData();
         } catch (error) {
           console.error('Failed to delete order');
           message.error('Failed to delete order');
@@ -319,7 +383,7 @@ console.log("issue--",userOrders)
         deliveryAddress: values.deliveryAddress,
         showroom: { id: values.showroomId },
         orderItems: values.items.map((item: any) => ({
-          product:{ id: item.productId},
+          product: { id: item.productId },
           quantity: item.quantity
         }))
       };
@@ -328,9 +392,7 @@ console.log("issue--",userOrders)
       message.success('Order created successfully!');
       setIsModalVisible(false);
       form.resetFields();
-      
-      const updatedOrders = await orderService.getAllOrders();
-      setOrders(updatedOrders);
+      fetchData();
     } catch (error) {
       console.error('Create order error:', error);
       message.error('Failed to create order');
@@ -343,16 +405,14 @@ console.log("issue--",userOrders)
     <div className="p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <Title level={2} className="!mb-0">Orders Management</Title>
-        {hasPermission('manage_orders') && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateOrder}
-            className="w-full sm:w-auto"
-          >
-            Create Order
-          </Button>
-        )}
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreateOrder}
+          className="w-full sm:w-auto"
+        >
+          Create Order
+        </Button>
       </div>
 
       <Card>
@@ -421,9 +481,21 @@ console.log("issue--",userOrders)
               <Form.Item
                 name="phoneNumber"
                 label="Phone Number"
-                rules={[{ required: true, message: 'Please enter phone number' }]}
+                rules={[
+                  { required: true, message: 'Please enter a phone number' },
+                  { pattern: /^[0-9]{10}$/, message: 'Phone number must be exactly 10 digits' }
+                ]}
               >
-                <Input prefix={<PhoneOutlined />} />
+                <Input
+                  prefix={<PhoneOutlined />}
+                  maxLength={10}
+                  placeholder="Enter 10-digit number"
+                  onKeyPress={(e) => {
+                    if (!/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -515,7 +587,7 @@ console.log("issue--",userOrders)
       </Modal>
 
       <Modal
-        title={`Order Details - ${selectedOrder?.orderNumber || 'N/A'}`}
+        title={`Order Details - #${selectedOrder?.id || 'N/A'}`}
         open={viewOrderModal}
         onCancel={() => setViewOrderModal(false)}
         footer={[
@@ -534,15 +606,15 @@ console.log("issue--",userOrders)
               <Col span={12}>
                 <Card title="Customer Information" size="small">
                   <p><strong>Name:</strong> {selectedOrder.customerName}</p>
-                  <p><strong>Phone:</strong> {selectedOrder.phoneNumber || selectedOrder.customerPhone}</p>
-                  <p><strong>Address:</strong> {selectedOrder.deliveryAddress || selectedOrder.customerAddress}</p>
+                  <p><strong>Phone:</strong> {selectedOrder.phoneNumber}</p>
+                  <p><strong>Address:</strong> {selectedOrder.deliveryAddress}</p>
                 </Card>
               </Col>
               <Col span={12}>
                 <Card title="Order Information" size="small">
-                  <p><strong>Order #:</strong> {selectedOrder.orderNumber}</p>
-                  <p><strong>Status:</strong> <Tag color={selectedOrder.status === 'Delivered' ? 'green' : selectedOrder.status === 'Approved' ? 'blue' : 'orange'}>{selectedOrder.status}</Tag></p>
-                  <p><strong>Date:</strong> {new Date(selectedOrder.createdAt).toLocaleDateString('en-IN')}</p>
+                  <p><strong>Order #:</strong> #{selectedOrder.id}</p>
+                  <p><strong>Status:</strong> <Tag color={selectedOrder.status === 'Delivered' ? 'green' : selectedOrder.status === 'Approved' ? 'blue' : 'orange'}>{selectedOrder.status || 'Pending'}</Tag></p>
+                  <p><strong>Date:</strong> {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleDateString('en-IN') : 'N/A'}</p>
                   <p><strong>Showroom:</strong> {showrooms[selectedOrder.showroom?.id] || 'Unknown'}</p>
                 </Card>
               </Col>
@@ -550,7 +622,7 @@ console.log("issue--",userOrders)
             
             <Card title="Order Items" className="mt-4" size="small">
               <Table
-                dataSource={selectedOrder.orderItems || selectedOrder.items || []}
+                dataSource={selectedOrder.orderItems || []}
                 pagination={false}
                 size="small"
                 columns={[
@@ -558,7 +630,7 @@ console.log("issue--",userOrders)
                     title: 'Product',
                     key: 'product',
                     render: (_, record: any) => {
-                      const product = productMap[record.product] || { name: record.productName || 'Unknown Product' };
+                      const product = productMap[record.product?.id] || { name: 'Unknown Product' };
                       return product.name;
                     }
                   },
@@ -571,7 +643,7 @@ console.log("issue--",userOrders)
                     title: 'Unit Price',
                     key: 'price',
                     render: (_, record: any) => {
-                      const product = productMap[record.product];
+                      const product = productMap[record.product?.id];
                       return product ? `₹${product.price}` : 'N/A';
                     }
                   },
@@ -579,7 +651,7 @@ console.log("issue--",userOrders)
                     title: 'Total',
                     key: 'total',
                     render: (_, record: any) => {
-                      const product = productMap[record.product];
+                      const product = productMap[record.product?.id];
                       const total = product ? product.price * record.quantity : 0;
                       return `₹${total.toFixed(2)}`;
                     }

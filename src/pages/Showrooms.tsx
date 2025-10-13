@@ -390,9 +390,21 @@ const Showrooms: React.FC = () => {
           <Form.Item
             name="phone"
             label="Phone"
-            rules={[{ required: true, message: 'Please input phone number!' }]}
+            rules={[{ required: true, message: 'Please input phone number!' },
+               {
+      pattern: /^[0-9]{10}$/,
+      message: 'Phone number must be exactly 10 digits',
+    },
+            ]}
           >
-            <Input placeholder="Enter phone number" />
+            <Input maxLength={10}
+    placeholder="Enter 10-digit number"
+    onKeyPress={(e) => {
+      // Block any non-numeric key
+      if (!/[0-9]/.test(e.key)) {
+        e.preventDefault();
+      }
+    }}/>
           </Form.Item>
           <Form.Item
             name="email"

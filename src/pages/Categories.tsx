@@ -31,9 +31,15 @@ const Categories: React.FC = () => {
     try {
       setLoading(true);
       const data = await categoryService.getAll();
-      setCategories(data);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch categories', variant: 'destructive' });
+      setCategories(data || []);
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        setCategories([]);
+        toast({ title: 'Info', description: 'No categories found' });
+      } else {
+        setCategories([]);
+        toast({ title: 'Error', description: 'Failed to fetch categories', variant: 'destructive' });
+      }
     } finally {
       setLoading(false);
     }
@@ -42,9 +48,14 @@ const Categories: React.FC = () => {
   const fetchSections = async () => {
     try {
       const data = await sectionService.getAll();
-      setSections(data);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch sections', variant: 'destructive' });
+      setSections(data || []);
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        setSections([]);
+      } else {
+        setSections([]);
+        toast({ title: 'Error', description: 'Failed to fetch sections', variant: 'destructive' });
+      }
     }
   };
 
@@ -57,18 +68,30 @@ const Categories: React.FC = () => {
       };
 
       if (editingCategory) {
-        await categoryService.update(editingCategory.id, { name: formData.name });
-        toast({ title: 'Success', description: 'Category updated successfully' });
+        const result = await categoryService.update(editingCategory.id, { name: formData.name });
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'Category updated successfully' });
+        }
       } else {
-        await categoryService.create(payload);
-        toast({ title: 'Success', description: 'Category created successfully' });
+        const result = await categoryService.create(payload);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'Category created successfully' });
+        }
       }
       setDialogOpen(false);
       setFormData({ name: '', sectionId: '' });
       setEditingCategory(null);
       fetchCategories();
-    } catch (error) {
-      toast({ title: 'Error', description: 'Operation failed', variant: 'destructive' });
+    } catch (error: any) {
+      if (error?.status === 204 || error?.response?.status === 204) {
+        toast({ title: 'Success', description: editingCategory ? 'Category updated successfully' : 'Category created successfully' });
+        setDialogOpen(false);
+        setFormData({ name: '', sectionId: '' });
+        setEditingCategory(null);
+        fetchCategories();
+      } else {
+        toast({ title: 'Error', description: 'Operation failed', variant: 'destructive' });
+      }
     }
   };
 
@@ -84,11 +107,18 @@ const Categories: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this category?')) {
       try {
-        await categoryService.delete(id);
-        toast({ title: 'Success', description: 'Category deleted successfully' });
+        const result = await categoryService.delete(id);
+        if (result?.status === 204 || result === null || result === undefined) {
+          toast({ title: 'Success', description: 'Category deleted successfully' });
+        }
         fetchCategories();
-      } catch (error) {
-        toast({ title: 'Error', description: 'Failed to delete category', variant: 'destructive' });
+      } catch (error: any) {
+        if (error?.status === 204 || error?.response?.status === 204) {
+          toast({ title: 'Success', description: 'Category deleted successfully' });
+          fetchCategories();
+        } else {
+          toast({ title: 'Error', description: 'Failed to delete category', variant: 'destructive' });
+        }
       }
     }
   };
@@ -132,11 +162,17 @@ const Categories: React.FC = () => {
                         <SelectValue placeholder="Select a section" />
                       </SelectTrigger>
                       <SelectContent>
-                        {sections.map((section) => (
-                          <SelectItem key={section.id} value={section.id.toString()}>
-                            {section.name}
+                        {sections && sections.length > 0 ? (
+                          sections.map((section) => (
+                            <SelectItem key={section.id} value={section.id.toString()}>
+                              {section.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>
+                            No sections available
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -167,23 +203,31 @@ const Categories: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell>{category.id}</TableCell>
-                    <TableCell>{category.name}</TableCell>
-                    <TableCell>{category.section.name}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(category)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(category.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {categories && categories.length > 0 ? (
+                  categories.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell>{category.id}</TableCell>
+                      <TableCell>{category.name}</TableCell>
+                      <TableCell>{category.section?.name || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(category)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(category.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4">
+                      No categories found
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           )}

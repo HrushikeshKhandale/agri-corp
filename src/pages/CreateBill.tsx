@@ -416,45 +416,22 @@ const CreateBill: React.FC = () => {
     };
   };
 
-  const handleFinish = async (values: any) => {
-    if (!hasPermission('create_bill')) {
-      message.error('You do not have permission to create bills');
-      return;
-    }
-    if (!selectedShowroom) {
-      message.error('Please select a showroom');
-      return;
-    }
-    if (selectedProducts.length === 0) {
-      message.error('Please add at least one product');
-      return;
-    }
-    if (!selectedCustomerId && !hasPermission('add_customer')) {
-      message.error('You do not have permission to add new customers');
-      return;
-    }
-    
-    let customerId = selectedCustomerId;
-    if (!selectedCustomerId) {
-      try {
-        const newCustomer = await customerService.createCustomer({
-          name: values.customerName,
-          phone: values.contact,
-          state: values.state || '',
-          district: values.district || '',
-          tahsil: values.taluka || '',
-          village: values.village || ''
-        });
-        customerId = newCustomer.id;
-        setCustomers(prev => [...prev, newCustomer]);
-      } catch (error) {
-        console.error('Customer creation error:', error);
-        message.error('Failed to create customer');
-        return;
-      }
-    }
+const handleFinish = async (values: any) => {
+  if (!hasPermission('create_bill')) {
+    message.error('You do not have permission to create bills');
+    return;
+  }
+  if (!selectedShowroom) {
+    message.error('Please select a showroom');
+    return;
+  }
+  if (selectedProducts.length === 0) {
+    message.error('Please add at least one product');
+    return;
+  }
 
-    const { total } = calculateOrderTotal(selectedProducts.map(p => ({
+  const { total: baseTotal } = calculateOrderTotal(
+    selectedProducts.map((p) => ({
       productId: p.id,
       productName: p.productName,
       quantity: p.quantity,
@@ -464,61 +441,73 @@ const CreateBill: React.FC = () => {
       discount: p.discount,
       discountType: p.discountType,
       totalAmount: p.totalAmount,
-    })));
-    const includePreviousUnpaid = values.includePreviousUnpaid;
-    const previousUnpaid = includePreviousUnpaid ? customerBalance.totalUnpaid : 0;
-    const totalWithPrevious = total + previousUnpaid;
-    const paidAmount = parseFloat(values.paidAmount) || 0;
-    if (paidAmount < 0) {
-      message.error('Paid amount cannot be negative');
-      return;
-    }
-    if (paidAmount > totalWithPrevious) {
-      message.error('Paid amount cannot exceed total');
-      return;
-    }
-    const unpaidAmount = totalWithPrevious - paidAmount;
+    }))
+  );
 
-    // Create payload in your specified format
-    const billPayload = createBillPayload(values);
-    console.log('Bill Payload:', JSON.stringify(billPayload, null, 2));
+  // ✅ Ensure includePreviousUnpaid is a strict boolean (true or false)
+  const includePreviousUnpaid = Boolean(form.getFieldValue('includePreviousUnpaid'));
 
-    try {
-      await billService.createBill({
-        customerId: customerId,
-        customerName: values.customerName,
-        contact: values.contact,
-        state: values.state || '',
-        district: values.district || '',
-        taluka: values.taluka || '',
-        village: values.village || '',
-        showroomId: parseInt(selectedShowroom!),
-        amountPayingNow: paidAmount,
-        unpaidAmount,
-        total: totalWithPrevious,
-        items: selectedProducts.map(p => ({
-          productId: p.id,
-          productName: p.productName,
-          companyName: p.companyName,
-          category: p.category,
-          type: p.type,
-          subtype: p.subtype,
-          unit: p.unit,
-          inwardPrice: p.inwardPrice,
-          salePrice: p.salePrice,
-          gst: p.gst,
-          discount: p.discount,
-          quantity: p.quantity,
-          totalAmount: p.totalAmount
-        }))
-      });
-      message.success('Bill created successfully');
-      navigate('/bill/history');
-    } catch (error) {
-      console.error('Bill creation error:', error);
-      message.error('Failed to create bill');
-    }
+  const previousUnpaid = includePreviousUnpaid && selectedCustomerId 
+    ? customerBalance.totalUnpaid 
+    : 0;
+
+  const totalWithPrevious = baseTotal + previousUnpaid;
+  const paidAmount = parseFloat(values.paidAmount) || 0;
+
+  if (paidAmount < 0) {
+    message.error('Paid amount cannot be negative');
+    return;
+  }
+  if (paidAmount > totalWithPrevious) {
+    message.error('Paid amount cannot exceed total');
+    return;
+  }
+  const unpaidAmount = totalWithPrevious - paidAmount;
+
+  const billPayload: any = {
+    customerName: values.customerName,
+    contact: values.contact,
+    state: values.state || '',
+    district: values.district || '',
+    taluka: values.taluka || '',
+    village: values.village || '',
+    showroomId: parseInt(selectedShowroom!, 10),
+    amountPayingNow: paidAmount,
+    unpaidAmount: unpaidAmount,
+    total: totalWithPrevious,
+    includePreviousUnpaid, // ✅ Now guaranteed to be true or false
+    items: selectedProducts.map((p) => ({
+      productId: p.id,
+      productName: p.productName,
+      companyName: p.companyName,
+      category: p.category,
+      type: p.type,
+      subtype: p.subtype,
+      unit: p.unit,
+      inwardPrice: p.inwardPrice,
+      salePrice: p.salePrice,
+      gst: p.gst,
+      discount: p.discount,
+      quantity: p.quantity,
+      totalAmount: p.totalAmount,
+    })),
   };
+
+  if (selectedCustomerId) {
+    billPayload.customerId = selectedCustomerId;
+  }
+
+  console.log('Creating bill with payload:', JSON.stringify(billPayload, null, 2));
+
+  try {
+    await billService.createBill(billPayload);
+    message.success('Bill created successfully');
+    navigate('/bill/history');
+  } catch (error) {
+    console.error('Bill creation error:', error);
+    message.error('Failed to create bill. Please try again.');
+  }
+};
 
   const handlePrint = () => {
     const { total } = calculateOrderTotal(selectedProducts);
@@ -644,7 +633,7 @@ const CreateBill: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={8}>
             <Form.Item name="contact" label="Contact" rules={[{ required: true, message: 'Please enter contact' }]}>
-              <Input />
+              <Input maxLength={10}/>
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={8}>

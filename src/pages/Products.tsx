@@ -440,13 +440,13 @@ useEffect(() => {
                 {filteredProducts.map(product => (
                   <Card key={product.id} className="ag-card-compact hover:shadow-md transition-shadow">
                     <CardContent className="p-0">
-                      {product.imageUrl && (
+                      {/* {product.imageUrl && (
                         <img
                           src={product.imageUrl}
                           alt={product.name}
                           className="w-full h-32 sm:h-40 object-cover rounded-t mb-3"
                         />
-                      )}
+                      )} */}
                       <div className="p-4">
                         <h4 className="font-semibold text-base sm:text-lg mb-2 line-clamp-2">{product.name}</h4>
                         <div className="flex items-center gap-2 mb-2">
@@ -527,6 +527,9 @@ useEffect(() => {
           setIsModalVisible(false);
           setEditingProduct(null);
           form.resetFields();
+        }}
+        style={{
+          position:"relative",top:10
         }}
         width={800}
       >

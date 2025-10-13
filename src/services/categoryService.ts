@@ -1,7 +1,7 @@
 import axiosInstance from './axiosInstance';
 import { Category, CreateCategoryRequest, UpdateCategoryRequest } from './types/category';
 
-const API_BASE = '/api/categories';
+const API_BASE = '/agri/api/categories';
 
 export const categoryService = {
   // Create category

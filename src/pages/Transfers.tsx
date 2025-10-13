@@ -126,13 +126,13 @@ const Transfers: React.FC = () => {
   }, [authState]);
 
   // Show loading spinner while auth initializes
-  if (!authReady) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Spin size="large" />
-      </div>
-    );
-  }
+  // if (!authReady) {
+  //   return (
+  //     <div className="flex justify-center items-center h-64">
+  //       <Spin size="large" />
+  //     </div>
+  //   );
+  // }
 
   // Safe access to auth properties with fallbacks
   const userRole = authState?.user?.role;
@@ -444,6 +444,10 @@ const Transfers: React.FC = () => {
         onCancel={() => {
           setIsModalVisible(false);
           form.resetFields();
+        }}
+        style={{
+          position:"relative",
+          top:15
         }}
         width={600}
         okText="Submit Request"

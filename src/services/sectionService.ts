@@ -1,7 +1,7 @@
 import axiosInstance from './axiosInstance';
 import { Section, CreateSectionRequest, UpdateSectionRequest } from './types/section';
 
-const API_BASE = '/api/sections';
+const API_BASE = '/agri/api/sections';
 
 export const sectionService = {
   // Create section

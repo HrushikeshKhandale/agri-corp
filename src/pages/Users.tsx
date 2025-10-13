@@ -1,27 +1,24 @@
-// src/pages/Users.tsx
 import React, { useState, useEffect } from 'react';
-import { Table,  Modal, Form, Input, Select, message, Spin } from 'antd';
-import { useAuth } from '../context/AuthContexts';
-import { useData } from '../context/DataContext';
-import { User } from '../context/AuthContexts'; // Import User interface
-import { Showroom } from '../context/DataContext';
+import { Table, Modal, Form, Input, Select, message, Spin } from 'antd';
 import userService, { User as ApiUser, RegisterRequest } from '../services/userService';
+import showroomService from '../services/showroomService';
+import { Showroom } from '../services/types/showroom';
 import { Button } from '@/components/ui/button';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 
-const { Option } = Select; // Import Option from antd Select
+const { Option } = Select;
 
 const Users: React.FC = () => {
-  const { authState, addUser, updateUser, deleteUser, hasPermission } = useAuth();
-  const { showrooms } = useData();
   const [form] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
   const [apiUsers, setApiUsers] = useState<ApiUser[]>([]);
+  const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchShowrooms();
   }, []);
 
   const fetchUsers = async () => {
@@ -36,6 +33,35 @@ const Users: React.FC = () => {
     }
   };
 
+  const fetchShowrooms = async () => {
+    try {
+      const data = await showroomService.getAllShowrooms();
+      setShowrooms(data);
+    } catch (error) {
+      message.error('Failed to fetch showrooms');
+    }
+  };
+
+  const handleUpdateUser = async (id: number, userData: any) => {
+    try {
+      await userService.updateUser(id, userData);
+      message.success('User updated successfully');
+      fetchUsers();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update user');
+    }
+  };
+
+  const handleDeleteUser = async (id: number) => {
+    try {
+      await userService.deleteUser(id);
+      message.success('User deleted successfully');
+      fetchUsers();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to delete user');
+    }
+  };
+
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: 'Username', dataIndex: 'username', key: 'username' },
@@ -47,34 +73,27 @@ const Users: React.FC = () => {
       render: (_: any, record: ApiUser) => (
         <div className="flex gap-2">
           <Button
-           variant="outline"
-            size="sm"  onClick={() => {
-              // Convert ApiUser to User format for editing
-              const userForEdit = {
-                id: record.id.toString(),
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditingUser(record);
+              form.setFieldsValue({
                 name: record.username,
                 email: record.email,
                 role: record.role,
-                showroomId: ''
-              } as User;
-              setEditingUser(userForEdit);
-              form.setFieldsValue({
-                ...userForEdit,
                 password: undefined,
               });
               setIsModalVisible(true);
             }}
-            disabled={!hasPermission('manage_users')}
           >
             <EditOutlined/>
-            
           </Button>
           <Button
-   variant="destructive"
-            size="sm"            onClick={() => deleteUser(record.id.toString())}
-            disabled={!hasPermission('manage_users') || record.id.toString() === authState?.user?.id}
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDeleteUser(record.id)}
           >
-<DeleteOutlined/>            
+            <DeleteOutlined/>
           </Button>
         </div>
       ),
@@ -87,10 +106,12 @@ const handleSubmit = async () => {
     
     if (editingUser) {
       const userData = {
-        ...values,
-        ...(values.password ? {} : { password: undefined }),
+        username: values.name,
+        email: values.email,
+        role: values.role,
+        ...(values.password && { password: values.password }),
       };
-      updateUser(editingUser.id, userData);
+      await handleUpdateUser(editingUser.id, userData);
     } else {
       if (!values.password) {
         message.error('Password is required for new users');
@@ -107,7 +128,7 @@ const handleSubmit = async () => {
       
       await userService.registerUser(registerData);
       message.success('User registered successfully');
-      fetchUsers(); // Refresh the user list
+      fetchUsers();
     }
     
     setIsModalVisible(false);
@@ -124,13 +145,12 @@ const handleSubmit = async () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">User Management</h2>
         <Button
-          size="large"
+          variant="default"
           onClick={() => {
             setEditingUser(null);
             form.resetFields();
             setIsModalVisible(true);
           }}
-          disabled={!hasPermission('manage_users')}
         >
           Add New User
         </Button>
@@ -168,7 +188,6 @@ const handleSubmit = async () => {
           <Form.Item
             name="email"
             label="Email"
-            // rules={[{ required: true, type: 'email', message: 'Please input a valid email!' }]}
           >
             <Input />
           </Form.Item>

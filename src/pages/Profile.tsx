@@ -34,9 +34,9 @@ const Profile: React.FC = () => {
     orders 
   } = useData();
 
-  const user = authState.user;
-  const employee = employees.find(emp => emp.email === user?.email);
-  const showroom = showrooms.find(s => s.id === authState.showroomId);
+  const user = authState?.user;
+  const employee = employees?.find(emp => emp.email === user?.email);
+  const showroom = showrooms?.find(s => s.id === authState?.showroomId);
 
   // Get user statistics
   const currentMonth = dayjs().format('YYYY-MM');
@@ -49,12 +49,12 @@ const Profile: React.FC = () => {
   const totalWorkingDays = dayjs().daysInMonth();
   
   const latestSalary = salaryRecords
-    .filter(record => record.employeeId === employee?.id)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    ?.filter(record => record.employeeId === employee?.id)
+    ?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())?.[0];
 
   const userOrders = user?.role === 'Employee' 
     ? [] 
-    : orders.filter(order => order.showroomId === authState.showroomId);
+    : orders?.filter(order => order.showroomId === authState?.showroomId) || [];
 
   const recentActivity = [
     ...userAttendance.slice(-5).map(att => ({
@@ -86,7 +86,7 @@ const Profile: React.FC = () => {
           <Card title="Profile Information" className="ag-card">
             <div className="flex items-start space-x-6">
               <Avatar 
-                src={user.avatar} 
+                src={user?.avatar} 
                 icon={<UserOutlined />}
                 size={120}
                 className="flex-shrink-0"
@@ -95,17 +95,17 @@ const Profile: React.FC = () => {
               <div className="flex-1">
                 <Descriptions column={{ xs: 1, md: 2 }}>
                   <Descriptions.Item label="Name" span={2}>
-                    <Text strong className="text-lg">{user.name}</Text>
+                    <Text strong className="text-lg">{user?.name}</Text>
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="Role">
-                    <Tag color="blue">{user.role}</Tag>
+                    <Tag color="blue">{user?.role}</Tag>
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="Email">
                     <div className="flex items-center">
                       <MailOutlined className="mr-2" />
-                      {user.email}
+                      {user?.email}
                     </div>
                   </Descriptions.Item>
                   
@@ -200,7 +200,7 @@ const Profile: React.FC = () => {
             )}
 
             {/* Performance Stats for Admins */}
-            {user.role !== 'Employee' && (
+            {user?.role !== 'Employee' && (
               <Card title="Performance" size="small" className="ag-card">
                 <Row gutter={[8, 8]}>
                   <Col span={24}>
