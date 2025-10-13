@@ -33,7 +33,7 @@ export const generateOrderPDF = async (order: Order, companyInfo: any) => {
   // Header
   pdf.setFontSize(20);
   pdf.setFont('helvetica', 'bold');
-  pdf.text(companyInfo.companyName || 'AgriERP Pro', pageWidth / 2, 25, { align: 'center' });
+  pdf.text(companyInfo.companyName || 'AgriCorp', pageWidth / 2, 25, { align: 'center' });
   
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'normal');
@@ -118,9 +118,11 @@ export const generateReportFromElement = async (elementId: string, filename: str
   }
   
   const canvas = await html2canvas(element, {
-    scale: 2,
+    scale: 1,
     logging: false,
-    useCORS: true
+    useCORS: true,
+    allowTaint: false,
+    backgroundColor: '#ffffff'
   });
   
   const imgWidth = 210;

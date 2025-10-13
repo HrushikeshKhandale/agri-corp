@@ -16,13 +16,13 @@ const customerService = {
     return response.data;
   },
 
-  createCustomer: async (data: Customer): Promise<Customer> => {
+  createCustomer: async (data: Omit<Customer, 'id'>): Promise<Customer> => {
     const response = await axiosInstance.post(BASE_AGRI_URL, data);
     return response.data;
   },
 
-  updateCustomer: async (id: number, data: Customer): Promise<Customer> => {
-    const response = await axiosInstance.put(`${BASE_AGRI_URL}/${id}`, data); // ✅ Fixed: Use BASE_AGRI_URL
+  updateCustomer: async (id: number, data: Partial<Customer>): Promise<Customer> => {
+    const response = await axiosInstance.put(`${BASE_AGRI_URL}/${id}`, data);
     return response.data;
   },
 

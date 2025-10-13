@@ -68,28 +68,28 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // Filter data by showroomId for non-Super Admin users
-  const filteredShowrooms = role === 'Super Admin'
+  // Filter data by showroomId for non-Admin users
+  const filteredShowrooms = role === 'Admin'
     ? mockShowrooms
     : mockShowrooms.filter(s => s.id.toString() === user?.showroomId);
-  const filteredOrders = role === 'Super Admin'
+  const filteredOrders = role === 'Admin'
     ? mockOrders
     : mockOrders.filter(o => o.showroomId === user?.showroomId);
-  const filteredEmployees = role === 'Super Admin'
+  const filteredEmployees = role === 'Admin'
     ? mockEmployees
     : mockEmployees.filter(e => e.showroomId === user?.showroomId);
-  const filteredTransfers = role === 'Super Admin'
+  const filteredTransfers = role === 'Admin'
     ? mockTransfers
     : mockTransfers.filter(t => t.fromShowroomId === user?.showroomId || t.toShowroomId === user?.showroomId);
 
   // Calculate statistics
-  const totalProducts = role === 'Super Admin'
+  const totalProducts = role === 'Admin'
     ? mockProducts.length
     : mockProducts.filter(p => Object.keys(p.stock).includes(user?.showroomId || '')).length;
   const totalShowrooms = filteredShowrooms.length;
   const totalEmployees = filteredEmployees.length;
   const totalOrders = filteredOrders.length;
-  const totalStockValue = role === 'Super Admin'
+  const totalStockValue = role === 'Admin'
     ? getTotalStockValue()
     : getTotalStockValue(user?.showroomId);
   const pendingOrders = filteredOrders.filter(order => order.status === 'Pending').length;
@@ -108,15 +108,15 @@ const Dashboard: React.FC = () => {
 
   // Category distribution for pie chart
   const categoryData = [
-    { name: 'Seeds', value: mockProducts.filter(p => p.category === 'Seeds' && (role === 'Super Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#8884d8' },
-    { name: 'Fertilizer', value: mockProducts.filter(p => p.category === 'Fertilizer' && (role === 'Super Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#82ca9d' },
-    { name: 'Pesticide', value: mockProducts.filter(p => p.category === 'Pesticide' && (role === 'Super Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#ffc658' },
-    { name: 'Equipment', value: mockProducts.filter(p => p.category === 'Equipment' && (role === 'Super Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#ff7c7c' }
+    { name: 'Seeds', value: mockProducts.filter(p => p.category === 'Seeds' && (role === 'Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#8884d8' },
+    { name: 'Fertilizer', value: mockProducts.filter(p => p.category === 'Fertilizer' && (role === 'Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#82ca9d' },
+    { name: 'Pesticide', value: mockProducts.filter(p => p.category === 'Pesticide' && (role === 'Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#ffc658' },
+    { name: 'Equipment', value: mockProducts.filter(p => p.category === 'Equipment' && (role === 'Admin' || Object.keys(p.stock).includes(user?.showroomId || ''))).length, color: '#ff7c7c' }
   ].filter(category => category.value > 0);
 
   // Low stock alerts
   const lowStockProducts = mockProducts.filter(product => {
-    const stock = role === 'Super Admin'
+    const stock = role === 'Admin'
       ? Object.values(product.stock).reduce((sum, qty) => sum + qty, 0)
       : product.stock[user?.showroomId || ''] || 0;
     return stock < 50;
@@ -167,59 +167,59 @@ const Dashboard: React.FC = () => {
         <div>
           <Title level={2} className="!mb-1">Dashboard</Title>
           <Text type="secondary">
-            Welcome back, {user?.username}! Here's what's happening in your {role === 'Super Admin' ? 'agriculture business' : 'showroom'}.
+            Welcome back, {user?.username}! Here's what's happening in your {role === 'Admin' ? 'agriculture business' : 'showroom'}.
           </Text>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]} className="mb-6">
         {hasPermission('view_products') && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="ag-card">
+          <Col xs={24} sm={12} xl={6}>
+            <Card className="ag-card-compact h-full">
               <Statistic
                 title="Total Products"
                 value={totalProducts}
                 prefix={<ShoppingOutlined className="text-blue-500" />}
-                valueStyle={{ color: 'hsl(var(--primary))' }}
+                valueStyle={{ color: 'hsl(var(--primary))', fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}
               />
             </Card>
           </Col>
         )}
         {hasPermission('view_showrooms') && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="ag-card">
+          <Col xs={24} sm={12} xl={6}>
+            <Card className="ag-card-compact h-full">
               <Statistic
                 title="Showrooms"
                 value={totalShowrooms}
                 prefix={<ShopOutlined className="text-green-500" />}
-                valueStyle={{ color: 'hsl(var(--success))' }}
+                valueStyle={{ color: 'hsl(var(--success))', fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}
               />
             </Card>
           </Col>
         )}
         {hasPermission('view_employees') && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="ag-card">
+          <Col xs={24} sm={12} xl={6}>
+            <Card className="ag-card-compact h-full">
               <Statistic
                 title="Employees"
                 value={totalEmployees}
                 prefix={<TeamOutlined className="text-purple-500" />}
-                valueStyle={{ color: 'hsl(var(--info))' }}
+                valueStyle={{ color: 'hsl(var(--info))', fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}
               />
             </Card>
           </Col>
         )}
         {hasPermission('view_stock_alerts') && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="ag-card">
+          <Col xs={24} sm={12} xl={6}>
+            <Card className="ag-card-compact h-full">
               <Statistic
                 title="Stock Value"
                 value={totalStockValue}
                 prefix={<DollarOutlined className="text-orange-500" />}
                 precision={0}
                 suffix="₹"
-                valueStyle={{ color: 'hsl(var(--warning))' }}
+                valueStyle={{ color: 'hsl(var(--warning))', fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}
               />
             </Card>
           </Col>
@@ -227,34 +227,38 @@ const Dashboard: React.FC = () => {
       </Row>
 
       {/* Alerts and Quick Stats */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]} className="mb-6">
         <Col xs={24} lg={8}>
-          <Card title="Quick Actions" className="ag-card">
-            <Space direction="vertical" className="w-full">
+          <Card title="Quick Actions" className="ag-card h-full">
+            <Space direction="vertical" className="w-full" size="middle">
               {hasPermission('view_bill_history') && (
-                <div className="flex justify-between items-center">
-                  <Text>Pending Orders</Text>
-                  <Tag color="orange">{pendingOrders}</Tag>
+                <div className="flex justify-between items-center p-2 bg-orange-50 rounded">
+                  <Text strong>Pending Orders</Text>
+                  <Tag color="orange" className="font-semibold">{pendingOrders}</Tag>
                 </div>
               )}
               {hasPermission('view_transfers') && (
-                <div className="flex justify-between items-center">
-                  <Text>Pending Transfers</Text>
-                  <Tag color="blue">{pendingTransfers}</Tag>
+                <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                  <Text strong>Pending Transfers</Text>
+                  <Tag color="blue" className="font-semibold">{pendingTransfers}</Tag>
                 </div>
               )}
               {hasPermission('view_stock_alerts') && (
-                <div className="flex justify-between items-center">
-                  <Text>Low Stock Items</Text>
-                  <Tag color="red">{lowStockProducts.length}</Tag>
+                <div className="flex justify-between items-center p-2 bg-red-50 rounded">
+                  <Text strong>Low Stock Items</Text>
+                  <Tag color="red" className="font-semibold">{lowStockProducts.length}</Tag>
                 </div>
               )}
               {hasPermission('view_bill_history') && (
-                <Progress
-                  percent={Math.round((filteredOrders.filter(o => o.status === 'Delivered').length / (totalOrders || 1)) * 100)}
-                  strokeColor="hsl(var(--success))"
-                  format={(percent) => `${percent}% Delivered`}
-                />
+                <div className="mt-4">
+                  <Text className="block mb-2 font-medium">Delivery Progress</Text>
+                  <Progress
+                    percent={Math.round((filteredOrders.filter(o => o.status === 'Delivered').length / (totalOrders || 1)) * 100)}
+                    strokeColor="hsl(var(--success))"
+                    format={(percent) => `${percent}% Delivered`}
+                    strokeWidth={8}
+                  />
+                </div>
               )}
             </Space>
           </Card>
@@ -262,14 +266,22 @@ const Dashboard: React.FC = () => {
 
         {hasPermission('view_stock_alerts') && (
           <Col xs={24} lg={16}>
-            <Card title="Stock Value by Showroom" className="ag-card">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={stockData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`₹${value}`, 'Stock Value']} />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" />
+            <Card title="Stock Value by Showroom" className="ag-card h-full">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={stockData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value) => [`₹${value}`, 'Stock Value']} 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #d9d9d9', 
+                      borderRadius: '6px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}
+                  />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
@@ -278,29 +290,31 @@ const Dashboard: React.FC = () => {
       </Row>
 
       {/* Charts and Tables */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]} className="mb-6">
         {hasPermission('view_products') && (
           <Col xs={24} lg={12}>
-            <Card title="Product Categories" className="ag-card">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+            <Card title="Product Categories" className="ag-card h-full">
+              <div className="w-full" style={{ minHeight: '250px' }}>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </Card>
           </Col>
         )}
@@ -314,14 +328,16 @@ const Dashboard: React.FC = () => {
                   Low Stock Alert
                 </Space>
               }
-              className="ag-card"
+              className="ag-card h-full"
             >
-              <div className="space-y-3 max-h-60 overflow-y-auto">
+              <div className="space-y-3" style={{ minHeight: '250px', maxHeight: '250px', overflowY: 'auto' }}>
                 {lowStockProducts.length === 0 ? (
-                  <Text type="secondary">All products are well stocked!</Text>
+                  <div className="flex items-center justify-center h-full">
+                    <Text type="secondary">All products are well stocked!</Text>
+                  </div>
                 ) : (
                   lowStockProducts.map(product => {
-                    const stock = role === 'Super Admin'
+                    const stock = role === 'Admin'
                       ? Object.values(product.stock).reduce((sum, qty) => sum + qty, 0)
                       : product.stock[user?.showroomId || ''] || 0;
                     return (
@@ -395,28 +411,28 @@ export default Dashboard;
 //     );
 //   }
 
-//   // Filter data by showroomId for non-Super Admin users
-//   const filteredShowrooms = authState.role === 'Super Admin'
+//   // Filter data by showroomId for non-Admin users
+//   const filteredShowrooms = authState.role === 'Admin'
 //     ? showrooms
 //     : showrooms.filter(s => s.id === authState.showroomId);
-//   const filteredOrders = authState.role === 'Super Admin'
+//   const filteredOrders = authState.role === 'Admin'
 //     ? orders
 //     : orders.filter(o => o.showroomId === authState.showroomId);
-//   const filteredEmployees = authState.role === 'Super Admin'
+//   const filteredEmployees = authState.role === 'Admin'
 //     ? employees
 //     : employees.filter(e => e.showroomId === authState.showroomId);
-//   const filteredTransfers = authState.role === 'Super Admin'
+//   const filteredTransfers = authState.role === 'Admin'
 //     ? transfers
 //     : transfers.filter(t => t.fromShowroomId === authState.showroomId || t.toShowroomId === authState.showroomId);
 
 //   // Calculate statistics
-//   const totalProducts = authState.role === 'Super Admin'
+//   const totalProducts = authState.role === 'Admin'
 //     ? products.length
 //     : products.filter(p => Object.keys(p.stock).includes(authState.showroomId || '')).length;
 //   const totalShowrooms = filteredShowrooms.length;
 //   const totalEmployees = filteredEmployees.length;
 //   const totalOrders = filteredOrders.length;
-//   const totalStockValue = authState.role === 'Super Admin'
+//   const totalStockValue = authState.role === 'Admin'
 //     ? getTotalStockValue()
 //     : getTotalStockValue(authState.showroomId);
 //   const pendingOrders = filteredOrders.filter(order => order.status === 'Pending').length;
@@ -435,15 +451,15 @@ export default Dashboard;
 
 //   // Category distribution for pie chart
 //   const categoryData = [
-//     { name: 'Seeds', value: products.filter(p => p.category === 'Seeds' && (authState.role === 'Super Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#8884d8' },
-//     { name: 'Fertilizer', value: products.filter(p => p.category === 'Fertilizer' && (authState.role === 'Super Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#82ca9d' },
-//     { name: 'Pesticide', value: products.filter(p => p.category === 'Pesticide' && (authState.role === 'Super Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#ffc658' },
-//     { name: 'Equipment', value: products.filter(p => p.category === 'Equipment' && (authState.role === 'Super Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#ff7c7c' }
+//     { name: 'Seeds', value: products.filter(p => p.category === 'Seeds' && (authState.role === 'Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#8884d8' },
+//     { name: 'Fertilizer', value: products.filter(p => p.category === 'Fertilizer' && (authState.role === 'Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#82ca9d' },
+//     { name: 'Pesticide', value: products.filter(p => p.category === 'Pesticide' && (authState.role === 'Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#ffc658' },
+//     { name: 'Equipment', value: products.filter(p => p.category === 'Equipment' && (authState.role === 'Admin' || Object.keys(p.stock).includes(authState.showroomId || ''))).length, color: '#ff7c7c' }
 //   ].filter(category => category.value > 0); // Remove categories with zero products
 
 //   // Low stock alerts
 //   const lowStockProducts = products.filter(product => {
-//     const stock = authState.role === 'Super Admin'
+//     const stock = authState.role === 'Admin'
 //       ? Object.values(product.stock).reduce((sum, qty) => sum + qty, 0)
 //       : product.stock[authState.showroomId || ''] || 0;
 //     return stock < 50; // Alert threshold
@@ -494,7 +510,7 @@ export default Dashboard;
 //         <div>
 //           <Title level={2} className="!mb-1">Dashboard</Title>
 //           <Text type="secondary">
-//             Welcome back, {authState.user?.name}! Here's what's happening in your {authState.role === 'Super Admin' ? 'agriculture business' : 'showroom'}.
+//             Welcome back, {authState.user?.name}! Here's what's happening in your {authState.role === 'Admin' ? 'agriculture business' : 'showroom'}.
 //           </Text>
 //         </div>
 //       </div>
@@ -648,7 +664,7 @@ export default Dashboard;
 //                   <Text type="secondary">All products are well stocked!</Text>
 //                 ) : (
 //                   lowStockProducts.map(product => {
-//                     const stock = authState.role === 'Super Admin'
+//                     const stock = authState.role === 'Admin'
 //                       ? Object.values(product.stock).reduce((sum, qty) => sum + qty, 0)
 //                       : product.stock[authState.showroomId || ''] || 0;
 //                     return (

@@ -21,7 +21,7 @@ const showroomService = {
     return response.data;
   },
 
-  updateShowroom: async (id: number, data: ShowroomPayload): Promise<Showroom> => {
+  updateShowroom: async (id: number, data: Partial<Showroom>): Promise<Showroom> => {
     const response = await axiosInstance.put(`${BASE_AGRI_URL}/${id}`, data);
     return response.data;
   },

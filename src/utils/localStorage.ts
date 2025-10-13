@@ -19,7 +19,7 @@ export class LocalStorageService {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue;
     } catch (error) {
-      console.error(`Error reading from localStorage key ${key}:`, error);
+      console.warn(`Failed to read localStorage key: ${key.replace(/[^a-zA-Z0-9_]/g, '_')}`);
       return defaultValue;
     }
   }
@@ -28,7 +28,7 @@ export class LocalStorageService {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.error(`Error writing to localStorage key ${key}:`, error);
+      console.warn(`Failed to write localStorage key: ${key.replace(/[^a-zA-Z0-9_]/g, '_')}`);
     }
   }
 
@@ -36,7 +36,7 @@ export class LocalStorageService {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      console.error(`Error removing from localStorage key ${key}:`, error);
+      console.warn(`Failed to remove localStorage key: ${key.replace(/[^a-zA-Z0-9_]/g, '_')}`);
     }
   }
 
@@ -208,7 +208,7 @@ export const initializeDefaultData = () => {
   // Default settings
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
     const defaultSettings = {
-      appTitle: 'AgriERP Pro',
+      appTitle: 'AgriCorp',
       companyName: 'Green Fields Agriculture',
       gstNumber: '22AAAAA0000A1Z5',
       address: '123 Agriculture Hub, Farm City, State - 123456',

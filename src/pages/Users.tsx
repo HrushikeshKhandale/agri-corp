@@ -1,10 +1,11 @@
 // src/pages/Users.tsx
-import React, { useState } from 'react';
-import { Table, Button, Modal, Form, Input, Select, message } from 'antd';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Modal, Form, Input, Select, message, Spin } from 'antd';
+import { useAuth } from '../context/AuthContexts';
 import { useData } from '../context/DataContext';
-import { User } from '../context/AuthContext'; // Import User interface
+import { User } from '../context/AuthContexts'; // Import User interface
 import { Showroom } from '../context/DataContext';
+import userService, { User as ApiUser, RegisterRequest } from '../services/userService';
 
 const { Option } = Select; // Import Option from antd Select
 
@@ -14,28 +15,49 @@ const Users: React.FC = () => {
   const [form] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [apiUsers, setApiUsers] = useState<ApiUser[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await userService.getAllUsers();
+      setApiUsers(response.Users);
+    } catch (error) {
+      message.error('Failed to fetch users');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
+    { title: 'Username', dataIndex: 'username', key: 'username' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     { title: 'Role', dataIndex: 'role', key: 'role' },
     {
-      title: 'Showroom',
-      dataIndex: 'showroomId',
-      key: 'showroomId',
-      render: (id: string) => showrooms.find((s: Showroom) => s.id === id)?.name || 'N/A',
-    },
-    {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: User) => (
+      render: (_: any, record: ApiUser) => (
         <span>
           <Button
             onClick={() => {
-              setEditingUser(record);
+              // Convert ApiUser to User format for editing
+              const userForEdit = {
+                id: record.id.toString(),
+                name: record.username,
+                email: record.email,
+                role: record.role,
+                showroomId: ''
+              } as User;
+              setEditingUser(userForEdit);
               form.setFieldsValue({
-                ...record,
-                password: undefined, // Clear password field for security
+                ...userForEdit,
+                password: undefined,
               });
               setIsModalVisible(true);
             }}
@@ -45,8 +67,8 @@ const Users: React.FC = () => {
           </Button>
           <Button
             danger
-            onClick={() => deleteUser(record.id)}
-            disabled={!hasPermission('manage_users') || record.id === authState.user?.id}
+            onClick={() => deleteUser(record.id.toString())}
+            disabled={!hasPermission('manage_users') || record.id.toString() === authState?.user?.id}
           >
             Delete
           </Button>
@@ -58,19 +80,31 @@ const Users: React.FC = () => {
 const handleSubmit = async () => {
   try {
     const values = await form.validateFields();
-    const userData = {
-      ...values,
-      ...(editingUser && !values.password ? { password: undefined } : {}),
-    };
+    
     if (editingUser) {
+      const userData = {
+        ...values,
+        ...(values.password ? {} : { password: undefined }),
+      };
       updateUser(editingUser.id, userData);
     } else {
       if (!values.password) {
         message.error('Password is required for new users');
         return;
       }
-      addUser(userData);
+      
+      const registerData: RegisterRequest = {
+        username: values.name,
+        password: values.password,
+        email: values.email,
+        role: values.role
+      };
+      
+      await userService.registerUser(registerData);
+      message.success('User registered successfully');
+      fetchUsers(); // Refresh the user list
     }
+    
     setIsModalVisible(false);
     form.resetFields();
     setEditingUser(null);
@@ -93,7 +127,17 @@ const handleSubmit = async () => {
       >
         Add User
       </Button>
-      <Table dataSource={authState.users} columns={columns} rowKey="id" />
+      <Spin spinning={loading}>
+        <Table 
+          dataSource={apiUsers} 
+          columns={columns} 
+          rowKey="id"
+          pagination={{
+            pageSize: 10,
+            showTotal: (total) => `Total ${total} users`
+          }}
+        />
+      </Spin>
       <Modal
         title={editingUser ? 'Edit User' : 'Add User'}
         open={isModalVisible}
@@ -124,9 +168,8 @@ const handleSubmit = async () => {
           </Form.Item>
           <Form.Item name="role" label="Role" rules={[{ required: true, message: 'Please select a role!' }]}>
             <Select>
-              <Option value="Super Admin">Super Admin</Option>
-              <Option value="Showroom Admin">Showroom Admin</Option>
-              <Option value="Employee">Employee</Option>
+              <Option value="ADMIN">Admin</Option>
+              <Option value="USER">User</Option>
             </Select>
           </Form.Item>
           <Form.Item name="showroomId" label="Showroom">

@@ -1,5 +1,5 @@
 // src/components/Layout/MainLayout.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Layout, Menu, Avatar, Dropdown, Typography, Space, Button, Badge, Drawer } from 'antd';
 import {
   DashboardOutlined,
@@ -40,112 +40,116 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const pendingTransfersCount = 0; // Placeholder for transfers count
 
   // Dynamic menu items based on permissions
-  const menuItems = [
-    {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
-      permission: 'view_dashboard'
-    },
-    {
-      key: '/bill',
-      icon: <BilibiliOutlined />,
-      label: 'Create Bill',
-      permission: 'create_bill',
-      children: [
-        {
-          key: '/bill/new-bill',
-          icon: <SwapOutlined />,
-          label: 'Create Bill',
-          permission: 'create_bill'
-        },
-        {
-          key: '/bill/history',
-          icon: <BarChartOutlined />,
-          label: 'Bill History',
-          permission: 'view_bill_history'
-        }
-      ]
-    },
-    {
-      key: '/stock',
-      icon: <ShoppingOutlined />,
-      label: 'Stock',
-      permission: 'view_products',
-      children: [
-        {
-          key: '/stock/products',
-          icon: <ShoppingOutlined />,
-          label: 'Products',
-          permission: 'view_products'
-        },
-        {
-          key: '/stock/add-stocks',
-          icon: <ManOutlined />,
-          label: 'Add Stocks',
-          permission: 'add_stocks'
-        },
-        {
-          key: '/stock/transfers',
-          icon: <SwapOutlined />,
-          label: 'Stock Transfers',
-          permission: 'view_transfers'
-        }
-      ]
-    },
-    {
-      key: '/orders',
-      icon: <ShoppingOutlined />,
-      label: 'Orders',
-      permission: 'view_orders'
-    },
-    {
-      key: '/customers',
-      icon: <UserOutlined />,
-      label: 'Customers',
-      permission: 'view_customers'
-    },
-    {
-      key: '/showrooms',
-      icon: <ShopOutlined />,
-      label: 'Showrooms',
-      permission: 'view_showrooms'
-    },
-    {
-      key: '/employees-root', // Changed from '/employees' to avoid duplication
-      icon: <TeamOutlined />,
-      label: 'Employees',
-      permission: 'view_employees',
-      children: [
-        {
-          key: '/employees/users',
-          icon: <UserAddOutlined />,
-          label: 'Employees',
-          permission: 'manage_users'
-        }
-      ]
-    },
-    {
-      key: '/reports',
-      icon: <BarChartOutlined />,
-      label: 'Reports',
-      permission: 'view_reports'
-    },
-    {
-      key: '/settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
-      permission: 'manage_settings'
-    }
-  ].filter(item => {
-    if (!user) return false;
-    const hasItemPermission = hasPermission(item.permission);
-    if (item.children) {
-      item.children = item.children.filter(child => hasPermission(child.permission));
-      return hasItemPermission || item.children.length > 0;
-    }
-    return hasItemPermission;
-  });
+  const menuItems = useMemo(() => {
+    const items = [
+      {
+        key: '/dashboard',
+        icon: <DashboardOutlined />,
+        label: 'Dashboard',
+        permission: 'view_dashboard'
+      },
+      {
+        key: '/bill',
+        icon: <BilibiliOutlined />,
+        label: 'Create Bill',
+        permission: 'create_bill',
+        children: [
+          {
+            key: '/bill/new-bill',
+            icon: <SwapOutlined />,
+            label: 'Create Bill',
+            permission: 'create_bill'
+          },
+          {
+            key: '/bill/history',
+            icon: <BarChartOutlined />,
+            label: 'Bill History',
+            permission: 'view_bill_history'
+          }
+        ]
+      },
+      {
+        key: '/stock',
+        icon: <ShoppingOutlined />,
+        label: 'Stock',
+        permission: 'view_products',
+        children: [
+          {
+            key: '/stock/products',
+            icon: <ShoppingOutlined />,
+            label: 'Products',
+            permission: 'view_products'
+          },
+          {
+            key: '/stock/add-stocks',
+            icon: <ManOutlined />,
+            label: 'Add Stocks',
+            permission: 'add_stocks'
+          },
+          {
+            key: '/stock/transfers',
+            icon: <SwapOutlined />,
+            label: 'Stock Transfers',
+            permission: 'view_transfers'
+          }
+        ]
+      },
+      {
+        key: '/orders',
+        icon: <ShoppingOutlined />,
+        label: 'Orders',
+        permission: 'view_orders'
+      },
+      {
+        key: '/customers',
+        icon: <UserOutlined />,
+        label: 'Customers',
+        permission: 'view_customers'
+      },
+      {
+        key: '/showrooms',
+        icon: <ShopOutlined />,
+        label: 'Showrooms',
+        permission: 'view_showrooms'
+      },
+      {
+        key: '/employees-root',
+        icon: <TeamOutlined />,
+        label: 'Employees',
+        permission: 'view_employees',
+        children: [
+          {
+            key: '/employees/users',
+            icon: <UserAddOutlined />,
+            label: 'Employees',
+            permission: 'manage_users'
+          }
+        ]
+      },
+      {
+        key: '/reports',
+        icon: <BarChartOutlined />,
+        label: 'Reports',
+        permission: 'view_reports'
+      },
+      {
+        key: '/settings',
+        icon: <SettingOutlined />,
+        label: 'Settings',
+        permission: 'manage_settings'
+      }
+    ];
+    
+    return items.filter(item => {
+      if (!user) return false;
+      const hasItemPermission = hasPermission(item.permission);
+      if (item.children) {
+        item.children = item.children.filter(child => hasPermission(child.permission));
+        return hasItemPermission || item.children.length > 0;
+      }
+      return hasItemPermission;
+    });
+  }, [user, hasPermission]);
 
   const userMenuItems = [
     {
@@ -203,7 +207,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <>
       <div className="flex items-center justify-center h-16 ag-gradient">
         <Title level={4} className="!text-white !mb-0">
-          {collapsed ? 'AG' : 'AgriERP Pro'}
+          {collapsed ? 'AG' : 'AgriCorp'}
         </Title>
       </div>
       <Menu
@@ -223,13 +227,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Content
           style={{
             marginTop: 64,
-            padding: 24,
+            padding: 12,
             minHeight: 'calc(100vh - 64px)',
             overflowY: 'auto',
             background: '#f5f5f5'
           }}
         >
-          <div className="bg-white rounded-lg p-6 shadow-sm">{children}</div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">{children}</div>
         </Content>
       ) : (
         <>
@@ -320,13 +324,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Content
               style={{
                 marginTop: 64,
-                padding: 24,
+                padding: isMobile ? 12 : 24,
                 minHeight: 'calc(100vh - 64px)',
-        overflowY: 'auto',
+                overflowY: 'auto',
                 background: '#f5f5f5'
               }}
             >
-              <div className="bg-white rounded-lg p-6 shadow-sm">{children}</div>
+              <div className="bg-white rounded-lg shadow-sm" style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
+                {children}
+              </div>
             </Content>
           </Layout>
         </>
@@ -556,7 +562,7 @@ export default MainLayout;
 //     <>
 //       <div className="flex items-center justify-center h-16 ag-gradient">
 //         <Title level={4} className="!text-white !mb-0">
-//           {collapsed ? 'AG' : 'AgriERP Pro'}
+//           {collapsed ? 'AG' : 'AgriCorp'}
 //         </Title>
 //       </div>
 //       <Menu

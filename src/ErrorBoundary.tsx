@@ -18,7 +18,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, info: any) {
-    console.error("Error caught by boundary:", error, info);
+    // Sanitize error message to prevent log injection
+    const sanitizedMessage = error.message?.replace(/[\r\n\t]/g, ' ').substring(0, 200) || 'Unknown error';
+    console.error('Error boundary caught error:', { message: sanitizedMessage, stack: error.stack?.substring(0, 500) });
   }
 
   render() {

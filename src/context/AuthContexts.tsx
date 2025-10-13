@@ -37,6 +37,7 @@ const permissions = {
     'view_stock_alerts',
     'export_report_pdf',
     'print_report',
+    'manage_settings',
     'manage_users'
   ],
   'USER': [

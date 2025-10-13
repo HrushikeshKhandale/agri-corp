@@ -1,88 +1,93 @@
 import React, { useState, useEffect } from 'react';
-import { useData } from '../context/DataContext';
-import { Select, Input, Button, Table, message, Modal, DatePicker, AutoComplete } from 'antd';
+import { Select, Input, Button, Table, message, Modal, DatePicker, Card, Space, Typography, Divider, Row, Col, Spin } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, BarcodeOutlined, ReloadOutlined } from '@ant-design/icons';
+import stockService, { Stock, StockPayload } from '../services/stockService';
+import productService, { Product } from '../services/productService';
+import showroomService from '../services/showroomService';
 import { generateBarcode } from '@/utils/barcodeGenerator';
+import { useAuth } from '../context/AuthContexts';
 import moment from 'moment';
 
 const { Option } = Select;
+const { Title } = Typography;
 
 interface StockFormData {
-  productId: string;
-  showroomId: string;
-  quantity: number;
   inwardDate: string;
   companyName: string;
-    companyId?: string;
+  productId: number;
+  showroomId: number;
   category: string;
-  type: string;
-  subtype: string;
   unit: string;
   inwardPrice: number;
   salePrice: number;
   gst: number;
   discount: number;
-  qty: number;
+  quantity: number;
   totalAmount: number;
-  availableStock: number;
   barcode: string;
   rack: string;
 }
 
 const StockManagement = () => {
-  const { 
-    products, 
-    showrooms, 
-    stockStores, 
-    addStockStore, 
-    updateStockStore, 
-    deleteStockStore, 
-    companies,
-    addCompany
-  } = useData();
+  const { hasPermission } = useAuth();
+  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [showrooms, setShowrooms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+
+  // Permission guard
+  if (!hasPermission('add_stocks')) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <h2>Stock Management</h2>
+        <p>You do not have permission to manage stocks.</p>
+      </div>
+    );
+  }
   
   const [formData, setFormData] = useState<StockFormData>({
-    productId: '',
-    showroomId: '',
-    quantity: 0,
     inwardDate: '',
     companyName: '',
-     companyId: '',
-   category: '',
-    type: '',
-    subtype: '',
+    productId: 0,
+    showroomId: 0,
+    category: '',
     unit: '',
     inwardPrice: 0,
     salePrice: 0,
     gst: 0,
     discount: 0,
-    qty: 0,
+    quantity: 0,
     totalAmount: 0,
-    availableStock: 0,
     barcode: '',
     rack: ''
   });
   
-  const [editingStockId, setEditingStockId] = useState<string | null>(null);
-  const [filteredCompanies, setFilteredCompanies] = useState(companies);
-  const [isNewCompany, setIsNewCompany] = useState(false);
+  const [editingStockId, setEditingStockId] = useState<number | null>(null);
 
- // Load existing stock data when company is selected
+  // Load initial data
   useEffect(() => {
-    if (formData.companyId && stockStores.length > 0 && !isNewCompany) {
-      const existingStock = stockStores.find(stock => 
-        stock.companyId === formData.companyId && 
-        (!editingStockId || stock.id !== editingStockId)
-      );
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    setTableLoading(true);
+    try {
+      const [stocksData, productsData, showroomsData] = await Promise.all([
+        stockService.getAllStocks(),
+        productService.getAllProducts(),
+        showroomService.getAllShowrooms()
+      ]);
       
-      if (existingStock) {
-        setFormData(prev => ({
-          ...prev,
-          ...existingStock,
-          qty: existingStock.quantity
-        }));
-      }
+      setStocks(stocksData);
+      setProducts(productsData);
+      setShowrooms(showroomsData);
+    } catch (error) {
+      message.error('Failed to load data');
+    } finally {
+      setTableLoading(false);
     }
-  }, [formData.companyId]);
+  };
 
   const validateForm = (): boolean => {
     if (!formData.productId) {
@@ -97,36 +102,36 @@ const StockManagement = () => {
       message.error('Please select an inward date');
       return false;
     }
-    if (formData.qty <= 0) {
+    if (formData.quantity <= 0) {
       message.error('Quantity must be greater than 0');
       return false;
     }
-    if (!formData.companyName) {
-      message.error('Please select or add a company');
+    if (!formData.companyName.trim()) {
+      message.error('Please enter company name');
       return false;
     }
     return true;
   };
 
   const calculateTotalAmount = (): number => {
-    return formData.qty * formData.salePrice;
+    return formData.quantity * formData.salePrice;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ 
       ...prev, 
-      [name]: name.includes('Price') || name.includes('gst') || name.includes('discount') || name.includes('qty')
+      [name]: name.includes('Price') || name.includes('gst') || name.includes('discount') || name.includes('quantity')
         ? parseFloat(value) || 0 
         : value,
-      totalAmount: name === 'salePrice' || name === 'qty' 
+      totalAmount: name === 'salePrice' || name === 'quantity' 
         ? (name === 'salePrice' ? parseFloat(value) || 0 : formData.salePrice) * 
-          (name === 'qty' ? parseFloat(value) || 0 : formData.qty)
+          (name === 'quantity' ? parseFloat(value) || 0 : formData.quantity)
         : prev.totalAmount
     }));
   };
 
-  const handleSelectChange = (name: keyof StockFormData, value: string) => {
+  const handleSelectChange = (name: keyof StockFormData, value: any) => {
     setFormData(prev => {
       const updatedData = { ...prev, [name]: value };
       if (name === 'productId') {
@@ -136,7 +141,7 @@ const StockManagement = () => {
           updatedData.unit = product.unit;
           updatedData.salePrice = product.price;
           updatedData.gst = product.gst;
-          updatedData.totalAmount = product.price * updatedData.qty;
+          updatedData.totalAmount = product.price * updatedData.quantity;
         }
       }
       return updatedData;
@@ -146,53 +151,6 @@ const StockManagement = () => {
   const handleDateChange = (date: moment.Moment | null, dateString: string) => {
     setFormData(prev => ({ ...prev, inwardDate: dateString }));
   };
-
-  const handleCompanySearch = (value: string) => {
-    const filtered = companies.filter(company =>
-      company.name.toLowerCase().includes(value.toLowerCase()) ||
-      (company.phone && company.phone.includes(value))
-    );
-    setFilteredCompanies(filtered);
-    setIsNewCompany(filtered.length === 0 && value.trim() !== '');
-  };
-
-  const handleCompanySelect = (value: string) => {
-    const selectedCompany = companies.find(company => company.id === value);
-    if (selectedCompany) {
-      setIsNewCompany(false);
-      setFormData(prev => ({
-        ...prev,
-        companyName: selectedCompany.name,
-            companyId: selectedCompany.id
-  }));
-    }
-  };
-
-  const handleAddNewCompany = async () => {
-    if (!formData.companyName.trim()) {
-      message.error('Please enter a company name');
-      return;
-    }
-
-    try {
-      const newCompany = await addCompany({
-        name: formData.companyName,
-        address: '',
-        phone: '',
-        email: ''
-      });
-
-      setFormData(prev => ({
-        ...prev,
-        companyId: newCompany.id
-      }));
-      setIsNewCompany(false);
-      message.success('Company added successfully');
-    } catch (error) {
-      message.error('Failed to add company: ' + error.message);
-    }
-  };
-
 
   const handleGenerateBarcode = () => {
     if (!formData.barcode) {
@@ -206,247 +164,305 @@ const StockManagement = () => {
 
   const resetForm = () => {
     setFormData({
-      productId: '',
-      showroomId: '',
-      quantity: 0,
       inwardDate: '',
       companyName: '',
-          companyId: '',
-  category: '',
-      type: '',
-      subtype: '',
+      productId: 0,
+      showroomId: 0,
+      category: '',
       unit: '',
       inwardPrice: 0,
       salePrice: 0,
       gst: 0,
       discount: 0,
-      qty: 0,
+      quantity: 0,
       totalAmount: 0,
-      availableStock: 0,
       barcode: '',
       rack: ''
     });
     setEditingStockId(null);
-    setIsNewCompany(false);
   };
 
-    const handleAddStock = async () => {
+  const handleAddStock = async () => {
     if (!validateForm()) return;
 
-    // If it's a new company, add it first
-    if (isNewCompany) {
-      await handleAddNewCompany();
-      if (!formData.companyId) {
-        message.error('Failed to add company');
-        return;
-      }
-    }
-
-    const product = products.find(p => p.id === formData.productId);
-    const showroom = showrooms.find(s => s.id === formData.showroomId);
-    
-    if (!product || !showroom) {
-      message.error('Invalid product or showroom selected');
-      return;
-    }
-
-    if (!formData.companyId) {
-      message.error('Company not properly selected');
-      return;
-    }
-
-    const newStock = {
-      ...formData,
-      productId: formData.productId,
-      showroomId: formData.showroomId,
-      quantity: formData.qty,
-      companyId: formData.companyId,
-      companyName: formData.companyName,
-      category: product.category,
-      unit: product.unit,
-      totalAmount: calculateTotalAmount(),
-      availableStock: formData.qty,
-      barcode: formData.barcode || generateBarcode()
-    };
-
+    setLoading(true);
     try {
-      await addStockStore(newStock);
+      const stockPayload: StockPayload = {
+        inwardDate: formData.inwardDate,
+        companyName: formData.companyName,
+        product: { id: formData.productId },
+        showroom: { id: formData.showroomId },
+        category: formData.category,
+        unit: formData.unit,
+        inwardPrice: formData.inwardPrice,
+        salePrice: formData.salePrice,
+        gst: formData.gst,
+        discount: formData.discount,
+        quantity: formData.quantity,
+        totalAmount: calculateTotalAmount(),
+        barcode: formData.barcode || generateBarcode(),
+        rack: formData.rack
+      };
+
+      const newStock = await stockService.createStock(stockPayload);
+      setStocks(prev => [...prev, newStock]);
       resetForm();
       message.success('Stock added successfully');
     } catch (error) {
-      message.error('Failed to add stock: ' + error.message);
+      message.error('Failed to add stock');
+    } finally {
+      setLoading(false);
     }
   };
 
-
-  
-  const handleEditStock = (stockId: string) => {
-    const stockToEdit = stockStores.find(stock => stock.id === stockId);
-    if (stockToEdit) {
-      setFormData({
-        ...stockToEdit,
-        qty: stockToEdit.quantity // Map quantity to qty for form
-      });
-      setEditingStockId(stockId);
-      setIsNewCompany(false);
-      message.info('Editing stock record');
-    }
+  const handleEditStock = (stock: Stock) => {
+    setFormData({
+      inwardDate: stock.inwardDate,
+      companyName: stock.companyName,
+      productId: stock.product.id,
+      showroomId: stock.showroom.id,
+      category: stock.category,
+      unit: stock.unit,
+      inwardPrice: stock.inwardPrice,
+      salePrice: stock.salePrice,
+      gst: stock.gst,
+      discount: stock.discount,
+      quantity: stock.quantity,
+      totalAmount: stock.totalAmount,
+      barcode: stock.barcode,
+      rack: stock.rack
+    });
+    setEditingStockId(stock.id!);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingStockId || !validateForm()) return;
 
-    const product = products.find(p => p.id === formData.productId);
-    const showroom = showrooms.find(s => s.id === formData.showroomId);
-    
-    if (!product || !showroom) {
-      message.error('Invalid product or showroom selected');
-      return;
-    }
-
-    const updatedStock = {
-      ...formData,
-      quantity: formData.qty, // Map qty to quantity for storage
-      category: product.category,
-      unit: product.unit,
-      totalAmount: calculateTotalAmount(),
-      availableStock: formData.qty // Simplified for edit (in real app, you'd calculate this differently)
-    };
-
+    setLoading(true);
     try {
-      updateStockStore(editingStockId, updatedStock);
+      const stockPayload: StockPayload = {
+        inwardDate: formData.inwardDate,
+        companyName: formData.companyName,
+        product: { id: formData.productId },
+        showroom: { id: formData.showroomId },
+        category: formData.category,
+        unit: formData.unit,
+        inwardPrice: formData.inwardPrice,
+        salePrice: formData.salePrice,
+        gst: formData.gst,
+        discount: formData.discount,
+        quantity: formData.quantity,
+        totalAmount: calculateTotalAmount(),
+        barcode: formData.barcode,
+        rack: formData.rack
+      };
+
+      const updatedStock = await stockService.updateStock(editingStockId, stockPayload);
+      setStocks(prev => prev.map(stock => 
+        stock.id === editingStockId ? updatedStock : stock
+      ));
       resetForm();
       message.success('Stock updated successfully');
     } catch (error) {
-      message.error('Failed to update stock: ' + error.message);
+      message.error('Failed to update stock');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteStock = (stockId: string) => {
+  const handleDeleteStock = (stockId: number) => {
     Modal.confirm({
       title: 'Confirm Delete',
       content: 'Are you sure you want to delete this stock record?',
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
-      onOk: () => {
-        deleteStockStore(stockId);
-        message.success('Stock deleted successfully');
+      onOk: async () => {
+        try {
+          await stockService.deleteStock(stockId);
+          setStocks(prev => prev.filter(stock => stock.id !== stockId));
+          message.success('Stock deleted successfully');
+        } catch (error) {
+          message.error('Failed to delete stock');
+        }
       }
     });
   };
 
   const columns = [
-    { title: 'Sr', dataIndex: 'sr', key: 'sr' },
-    { title: 'Inward Date', dataIndex: 'inwardDate', key: 'inwardDate' },
+    { 
+      title: 'Sr', 
+      dataIndex: 'sr', 
+      key: 'sr',
+      width: 60,
+      align: 'center' as const
+    },
+    { 
+      title: 'Inward Date', 
+      dataIndex: 'inwardDate', 
+      key: 'inwardDate',
+      width: 120,
+      render: (date: string) => moment(date).format('DD/MM/YYYY')
+    },
     { 
       title: 'Store', 
-      dataIndex: 'showroomId', 
-      key: 'showroomId', 
-      render: (id: string) => showrooms.find(s => s.id === id)?.name || 'N/A' 
+      dataIndex: 'showroom', 
+      key: 'showroom',
+      width: 120,
+      render: (showroom: any) => showroom?.name || 'N/A'
     },
-    { title: 'Company', dataIndex: 'companyName', key: 'companyName' },
+    { 
+      title: 'Company', 
+      dataIndex: 'companyName', 
+      key: 'companyName',
+      width: 150
+    },
     { 
       title: 'Product', 
-      dataIndex: 'productId', 
-      key: 'productId',
-      render: (id: string) => products.find(p => p.id === id)?.name || 'N/A'
+      dataIndex: 'product', 
+      key: 'product',
+      width: 150,
+      render: (product: any) => product?.name || 'N/A'
     },
-    { title: 'Category', dataIndex: 'category', key: 'category' },
-    { title: 'Unit', dataIndex: 'unit', key: 'unit' },
+    { 
+      title: 'Category', 
+      dataIndex: 'category', 
+      key: 'category',
+      width: 120
+    },
+    { 
+      title: 'Unit', 
+      dataIndex: 'unit', 
+      key: 'unit',
+      width: 80
+    },
     { 
       title: 'Inward Price', 
       dataIndex: 'inwardPrice', 
       key: 'inwardPrice',
+      width: 120,
+      align: 'right' as const,
       render: (value: number) => `₹${value.toFixed(2)}`
     },
     { 
       title: 'Sale Price', 
       dataIndex: 'salePrice', 
       key: 'salePrice',
+      width: 120,
+      align: 'right' as const,
       render: (value: number) => `₹${value.toFixed(2)}`
     },
-    { title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
+    { 
+      title: 'Qty', 
+      dataIndex: 'quantity', 
+      key: 'quantity',
+      width: 80,
+      align: 'center' as const
+    },
     { 
       title: 'Total', 
       dataIndex: 'totalAmount', 
       key: 'totalAmount',
+      width: 120,
+      align: 'right' as const,
       render: (value: number) => `₹${value.toFixed(2)}`
     },
-    { title: 'Stock', dataIndex: 'availableStock', key: 'availableStock' },
-    { title: 'Barcode', dataIndex: 'barcode', key: 'barcode' },
-    { title: 'Rack', dataIndex: 'rack', key: 'rack' },
+    { 
+      title: 'Barcode', 
+      dataIndex: 'barcode', 
+      key: 'barcode',
+      width: 120
+    },
+    { 
+      title: 'Rack', 
+      dataIndex: 'rack', 
+      key: 'rack',
+      width: 100
+    },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: any) => (
-        <div>
-          <Button onClick={() => handleEditStock(record.id)} style={{ marginRight: 8 }}>Edit</Button>
-          <Button onClick={() => handleDeleteStock(record.id)} danger>Delete</Button>
-        </div>
+      width: 120,
+      fixed: 'right' as const,
+      render: (_: any, record: Stock) => (
+        <Space size="small">
+          <Button 
+            type="text" 
+            icon={<EditOutlined />} 
+            onClick={() => handleEditStock(record)}
+            size="small"
+            disabled={!hasPermission('add_stocks')}
+          />
+          <Button 
+            type="text" 
+            danger 
+            icon={<DeleteOutlined />} 
+            onClick={() => handleDeleteStock(record.id!)}
+            size="small"
+            disabled={!hasPermission('add_stocks')}
+          />
+        </Space>
       ),
     },
   ];
 
-  const tableData = stockStores.map((stock, index) => ({
+  const tableData = stocks.map((stock, index) => ({
     ...stock,
     sr: index + 1,
     key: stock.id,
   }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24, padding: 24, backgroundColor: '#fff', borderRadius: 8 }}>
-        <h2>{editingStockId ? 'Edit Stock' : 'Add New Stock'}</h2>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
-          {/* Row 1 */}
-          <div>
-            <label>Inward Date</label>
+    <div style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      <Card 
+        style={{ marginBottom: 24 }}
+        title={
+          <Space>
+            <PlusOutlined />
+            <Title level={4} style={{ margin: 0 }}>
+              {editingStockId ? 'Edit Stock' : 'Add New Stock'}
+            </Title>
+          </Space>
+        }
+        extra={
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={loadInitialData}
+            loading={tableLoading}
+          >
+            Refresh
+          </Button>
+        }
+      >
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Inward Date</label>
             <DatePicker
-              value={formData.inwardDate ? moment(formData.inwardDate) : null}
+              value={formData.inwardDate ? moment(formData.inwardDate, 'YYYY-MM-DD') : null}
               onChange={handleDateChange}
               style={{ width: '100%' }}
+              placeholder="Select date"
+              format="YYYY-MM-DD"
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Company Name</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <AutoComplete
-                value={formData.companyName}
-                onChange={(value) => {
-                  setFormData(prev => ({ ...prev, companyName: value }));
-                  handleCompanySearch(value);
-                }}
-                onSelect={handleCompanySelect}
-                onSearch={handleCompanySearch}
-                placeholder="Search company"
-                style={{ flex: 1 }}
-                options={filteredCompanies.map(company => ({
-                  value: company.id,
-                  label: company.name
-                }))}
-              />
-              {isNewCompany && (
-                <Button 
-                  type="primary" 
-                  onClick={handleAddNewCompany}
-                  style={{ width: 100 }}
-                >
-                  Add Company
-                </Button>
-              )}
-            </div>
-          </div>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Company Name</label>
+            <Input
+              value={formData.companyName}
+              onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+              placeholder="Enter company name"
+            />
+          </Col>
           
-          <div>
-            <label>Product</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Product</label>
             <Select
-              value={formData.productId}
+              value={formData.productId || undefined}
               onChange={(value) => handleSelectChange('productId', value)}
               style={{ width: '100%' }}
               showSearch
+              placeholder="Select product"
               optionFilterProp="children"
               filterOption={(input, option) =>
                 option?.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
@@ -456,178 +472,189 @@ const StockManagement = () => {
                 <Option key={product.id} value={product.id}>{product.name}</Option>
               ))}
             </Select>
-          </div>
+          </Col>
           
-          <div>
-            <label>Showroom</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Showroom</label>
             <Select
-              value={formData.showroomId}
+              value={formData.showroomId || undefined}
               onChange={(value) => handleSelectChange('showroomId', value)}
               style={{ width: '100%' }}
+              placeholder="Select showroom"
             >
               {showrooms.map(showroom => (
                 <Option key={showroom.id} value={showroom.id}>{showroom.name}</Option>
               ))}
             </Select>
-          </div>
+          </Col>
 
-          {/* Row 2 */}
-          <div>
-            <label>Category</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Category</label>
             <Input
               name="category"
               value={formData.category}
               readOnly
-              style={{ width: '100%' }}
+              style={{ backgroundColor: '#f5f5f5' }}
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Unit</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Unit</label>
             <Input
               name="unit"
               value={formData.unit}
               readOnly
-              style={{ width: '100%' }}
+              style={{ backgroundColor: '#f5f5f5' }}
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Inward Price</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Inward Price</label>
             <Input
               type="number"
               name="inwardPrice"
               value={formData.inwardPrice}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
+              placeholder="0.00"
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Sale Price</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Sale Price</label>
             <Input
               type="number"
               name="salePrice"
               value={formData.salePrice}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
+              placeholder="0.00"
             />
-          </div>
+          </Col>
 
-          {/* Row 3 */}
-          <div>
-            <label>GST (%)</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>GST (%)</label>
             <Input
               type="number"
               name="gst"
               value={formData.gst}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
+              placeholder="0"
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Discount</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Discount</label>
             <Input
               type="number"
               name="discount"
               value={formData.discount}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
+              placeholder="0.00"
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Quantity</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Quantity</label>
             <Input
               type="number"
-              name="qty"
-              value={formData.qty}
+              name="quantity"
+              value={formData.quantity}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
+              placeholder="0"
             />
-          </div>
+          </Col>
           
-          <div>
-            <label>Total Amount</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Total Amount</label>
             <Input
               type="number"
-              name="totalAmount"
               value={calculateTotalAmount()}
               readOnly
-              style={{ width: '100%' }}
+              style={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}
             />
-          </div>
+          </Col>
 
-          {/* Row 4 */}
-          <div>
-            <label>Barcode</label>
-            <div style={{ display: 'flex', gap: 8 }}>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Barcode</label>
+            <Space.Compact style={{ width: '100%' }}>
               <Input
                 name="barcode"
                 value={formData.barcode}
                 onChange={handleInputChange}
-                style={{ flex: 1 }}
+                placeholder="Auto-generated"
               />
               <Button 
+                icon={<BarcodeOutlined />}
                 onClick={handleGenerateBarcode}
                 disabled={!!formData.barcode}
-              >
-                Generate
-              </Button>
-            </div>
-          </div>
+              />
+            </Space.Compact>
+          </Col>
           
-          <div>
-            <label>Rack</label>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Rack</label>
             <Input
               name="rack"
               value={formData.rack}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
+              placeholder="Rack location"
             />
-          </div>
+          </Col>
           
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-            {editingStockId ? (
-              <>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <div style={{ paddingTop: 30 }}>
+              {editingStockId ? (
+                <Space>
+                  <Button 
+                    type="primary" 
+                    onClick={handleSaveEdit}
+                    loading={loading}
+                    disabled={!hasPermission('add_stocks')}
+                  >
+                    Save Changes
+                  </Button>
+                  <Button onClick={resetForm}>
+                    Cancel
+                  </Button>
+                </Space>
+              ) : (
                 <Button 
                   type="primary" 
-                  onClick={handleSaveEdit}
-                  style={{ flex: 1 }}
+                  icon={<PlusOutlined />}
+                  onClick={handleAddStock}
+                  loading={loading}
+                  block
+                  disabled={!hasPermission('add_stocks')}
                 >
-                  Save Changes
+                  Add Stock
                 </Button>
-                <Button 
-                  onClick={resetForm}
-                  style={{ flex: 1 }}
-                >
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <Button 
-                type="primary" 
-                onClick={handleAddStock}
-                style={{ flex: 1 }}
-              >
-                Add Stock
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
+              )}
+            </div>
+          </Col>
+        </Row>
+      </Card>
 
-      <div style={{ backgroundColor: '#fff', padding: 24, borderRadius: 8 }}>
+      <Card 
+        title={
+          <Space>
+            <Title level={4} style={{ margin: 0 }}>Stock Records</Title>
+          </Space>
+        }
+      >
         <Table
           columns={columns}
           dataSource={tableData}
+          loading={tableLoading}
           scroll={{ x: 1500 }}
-          pagination={{ pageSize: 10 }}
+          pagination={{ 
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+          }}
           bordered
-          title={() => <h3>Stock Records</h3>}
+          size="small"
         />
-      </div>
+      </Card>
     </div>
   );
 };

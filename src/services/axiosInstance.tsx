@@ -6,6 +6,13 @@ import axios, {
   InternalAxiosRequestConfig
 } from 'axios';
 
+// Global loading state
+let setGlobalLoading: ((loading: boolean) => void) | null = null;
+
+export const setLoadingHandler = (handler: (loading: boolean) => void) => {
+  setGlobalLoading = handler;
+};
+
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: 'http://localhost:8080',
   timeout: 10000,
@@ -23,16 +30,27 @@ const getAuthToken = (): string | null => {
 // REQUEST INTERCEPTOR
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Show loader
+    if (setGlobalLoading) {
+      setGlobalLoading(true);
+    }
+
     const token = getAuthToken();
     if (token) {
       config.headers.set('Authorization', `Bearer ${token}`);
     }
 
-    console.log(`[Request] ${config.method?.toUpperCase()} ${config.url}`);
+    const method = config.method?.toUpperCase()?.replace(/[^A-Z]/g, '') || 'UNKNOWN';
+    const url = config.url?.replace(/[\r\n\t]/g, '').substring(0, 100) || 'unknown';
+    console.log(`[Request] ${method} ${url}`);
     return config;
   },
   (error: AxiosError) => {
-    console.error('[Request Error]', error);
+    // Hide loader on error
+    if (setGlobalLoading) {
+      setGlobalLoading(false);
+    }
+    console.error('[Request Error] Network request failed');
     return Promise.reject(error);
   }
 );
@@ -40,11 +58,19 @@ axiosInstance.interceptors.request.use(
 // RESPONSE INTERCEPTOR
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
-    console.log('[Response]', response);
+    // Hide loader on success
+    if (setGlobalLoading) {
+      setGlobalLoading(false);
+    }
+    console.log('[Response] Success');
     return response;
   },
   (error: AxiosError) => {
-    console.error('[Response Error]', error);
+    // Hide loader on error
+    if (setGlobalLoading) {
+      setGlobalLoading(false);
+    }
+    console.error('[Response Error] Request failed');
 
     if (error.response) {
       const { status } = error.response;

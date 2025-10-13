@@ -22,7 +22,7 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 import { LocalStorageService, STORAGE_KEYS } from '../utils/localStorage';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContexts';
 import { Card as UICard, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/card';
 import { Button as UIButton, buttonVariants } from '../components/ui/button';
 
@@ -55,7 +55,7 @@ const Settings: React.FC = () => {
 
   // Load current settings
   const currentSettings: Settings = LocalStorageService.get(STORAGE_KEYS.SETTINGS, {
-    appTitle: 'AgriERP Pro',
+    appTitle: 'AgriCorp',
     companyName: 'Green Fields Agriculture',
     gstNumber: '22AAAAA0000A1Z5',
     address: '123 Agriculture Hub, Farm City, State - 123456',
@@ -105,7 +105,7 @@ const Settings: React.FC = () => {
       return;
     }
     const defaultSettings: Settings = {
-      appTitle: 'AgriERP Pro',
+      appTitle: 'AgriCorp',
       companyName: 'Green Fields Agriculture',
       gstNumber: '22AAAAA0000A1Z5',
       address: '123 Agriculture Hub, Farm City, State - 123456',
@@ -146,7 +146,7 @@ const Settings: React.FC = () => {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `agrierp_data_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `AgriCorp_data_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
     
@@ -257,7 +257,7 @@ const Settings: React.FC = () => {
           <p className="text-gray-600">Configure application preferences and company information</p>
         </div>
         <div className="flex gap-2">
-          <Segmented
+          {/* <Segmented
             options={['Card View', 'List View']}
             value={viewMode === 'card' ? 'Card View' : 'List View'}
             onChange={(value) => {
@@ -265,7 +265,7 @@ const Settings: React.FC = () => {
               console.log(`Switching to ${newMode} view for user with role ${authState.role}`);
               setViewMode(newMode);
             }}
-          />
+          /> */}
           <UIButton
             variant="primary"
             onClick={handleSave}
@@ -291,7 +291,7 @@ const Settings: React.FC = () => {
                     label="Application Title"
                     rules={[{ required: true, message: 'Please input application title!' }]}
                   >
-                    <Input placeholder="AgriERP Pro" />
+                    <Input placeholder="AgriCorp" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
@@ -559,7 +559,7 @@ export default Settings;
 
 //   // Load current settings
 //   const currentSettings: Settings = LocalStorageService.get(STORAGE_KEYS.SETTINGS, {
-//     appTitle: 'AgriERP Pro',
+//     appTitle: 'AgriCorp',
 //     companyName: 'Green Fields Agriculture',
 //     gstNumber: '22AAAAA0000A1Z5',
 //     address: '123 Agriculture Hub, Farm City, State - 123456',
@@ -598,7 +598,7 @@ export default Settings;
 
 //   const resetToDefault = () => {
 //     const defaultSettings: Settings = {
-//       appTitle: 'AgriERP Pro',
+//       appTitle: 'AgriCorp',
 //       companyName: 'Green Fields Agriculture',
 //       gstNumber: '22AAAAA0000A1Z5',
 //       address: '123 Agriculture Hub, Farm City, State - 123456',
@@ -647,7 +647,7 @@ export default Settings;
 //                 label="Application Title"
 //                 rules={[{ required: true, message: 'Please input application title!' }]}
 //               >
-//                 <Input placeholder="AgriERP Pro" />
+//                 <Input placeholder="AgriCorp" />
 //               </Form.Item>
 //             </Col>
 //             <Col xs={24} md={12}>
@@ -782,7 +782,7 @@ export default Settings;
 //                 const url = URL.createObjectURL(dataBlob);
 //                 const link = document.createElement('a');
 //                 link.href = url;
-//                 link.download = `agrierp_data_${new Date().toISOString().split('T')[0]}.json`;
+//                 link.download = `AgriCorp_data_${new Date().toISOString().split('T')[0]}.json`;
 //                 link.click();
 //                 URL.revokeObjectURL(url);
                 

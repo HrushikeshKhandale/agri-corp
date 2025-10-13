@@ -21,7 +21,7 @@ import {
   PrinterOutlined
 } from '@ant-design/icons';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContexts';
 import { 
   BarChart, 
   Bar, 
@@ -59,15 +59,15 @@ const Reports: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
 
   // Filter data based on user role
-  const userShowrooms = authState.user?.role === 'Super Admin' 
+  const userShowrooms = authState.user?.role === 'Admin' 
     ? showrooms 
     : showrooms.filter(s => s.id === authState.showroomId);
 
-  const userOrders = authState.user?.role === 'Super Admin' 
+  const userOrders = authState.user?.role === 'Admin' 
     ? orders 
     : orders.filter(o => o.showroomId === authState.showroomId);
 
-  const userEmployees = authState.user?.role === 'Super Admin' 
+  const userEmployees = authState.user?.role === 'Admin' 
     ? employees 
     : employees.filter(e => e.showroomId === authState.showroomId);
 
@@ -192,7 +192,7 @@ const Reports: React.FC = () => {
 
   const exportToPDF = async () => {
     try {
-      await generateReportFromElement('reports-dashboard', 'AgriERP_Report.pdf');
+      await generateReportFromElement('reports-dashboard', 'AgriCorp_Report.pdf');
     } catch (error) {
       console.error('Failed to export PDF:', error);
     }

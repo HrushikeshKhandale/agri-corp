@@ -15,6 +15,11 @@ export interface LoginResponse {
 }
 
 export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
-  const response = await axiosInstance.post<LoginResponse>('/agri/api/auth/login', credentials);
-  return response.data;
+  try {
+    const response = await axiosInstance.post<LoginResponse>('/agri/api/auth/login', credentials);
+    return response.data;
+  } catch (error) {
+    console.error('Login failed');
+    throw new Error('Authentication failed');
+  }
 };

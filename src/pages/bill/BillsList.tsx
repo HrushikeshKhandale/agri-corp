@@ -1,51 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   Button,
   Tooltip,
   Modal,
-  Steps,
   Card,
   Row,
   Col,
-  Tag,
   Divider,
   message,
-  Segmented
+  Segmented,
+  Popconfirm
 } from 'antd';
 import {
   EyeOutlined,
   DownloadOutlined,
   PrinterOutlined,
-  LeftOutlined
+  LeftOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { useData } from '../../context/DataContext';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContexts';
 import { generateOrderPDF } from '@/utils/pdfGenerator';
-import type { Order } from '../../context/DataContext';
 import { Card as UICard, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card';
-import { Button as UIButton, buttonVariants } from '../../components/ui/button';
-
-const { Step } = Steps;
+import { Button as UIButton } from '../../components/ui/button';
+import billService, { BillResponse } from '../../services/billService';
 
 const BillsList: React.FC = () => {
-  const { orders, showrooms } = useData();
-  const { authState, hasPermission } = useAuth();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [viewOrderModal, setViewOrderModal] = useState(false);
+  const { showrooms } = useData();
+  const { hasPermission } = useAuth();
+  const [bills, setBills] = useState<BillResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedBill, setSelectedBill] = useState<BillResponse | null>(null);
+  const [viewBillModal, setViewBillModal] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
 
-  // Filter orders by showroomId for non-Super Admin users
-  const filteredOrders = authState.role === 'Super Admin'
-    ? orders
-    : orders.filter(order => order.showroomId === authState.showroomId);
+  useEffect(() => {
+    fetchBills();
+  }, []);
 
-  const handleDownloadPDF = async (order: Order) => {
-    if (!hasPermission('download_bill_pdf')) {
-      message.error('You do not have permission to download bill PDFs');
-      console.log(`Permission check failed: download_bill_pdf for role ${authState.role}`);
-      return;
+  const fetchBills = async () => {
+    setLoading(true);
+    try {
+      const data = await billService.getAllBills();
+      setBills(data);
+    } catch (error) {
+      message.error('Failed to fetch bills');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleDeleteBill = async (id: number) => {
+    try {
+      await billService.deleteBill(id);
+      message.success('Bill deleted successfully');
+      fetchBills();
+    } catch (error) {
+      message.error('Failed to delete bill');
+    }
+  };
+
+  const handleDownloadPDF = async (bill: BillResponse) => {
     try {
       const companyInfo = {
         companyName: 'AgriCorp Showroom',
@@ -53,14 +69,16 @@ const BillsList: React.FC = () => {
         gstNumber: '27ABCDE1234F2Z5'
       };
       const transformedOrder = {
-        ...order,
-        items: order.items.map(item => ({
-          productId: item.productId,
-          name: item.productName,
+        ...bill,
+        customerName: bill.customerName,
+        customerPhone: bill.contact,
+        items: bill.items.map(item => ({
+          productId: item.id.toString(),
+          name: `${item.companyName} - ${item.category}`,
           quantity: item.quantity,
-          unitPrice: item.price,
+          unitPrice: item.salePrice,
           gst: item.gst,
-          total: item.totalAmount ?? (item.quantity * item.price),
+          total: item.totalAmount,
         })),
       };
       await generateOrderPDF(transformedOrder, companyInfo);
@@ -71,33 +89,28 @@ const BillsList: React.FC = () => {
     }
   };
 
-  const handlePrint = (order: Order) => {
-    if (!hasPermission('print_bill')) {
-      message.error('You do not have permission to print bills');
-      console.log(`Permission check failed: print_bill for role ${authState.role}`);
-      return;
-    }
+  const handlePrint = (bill: BillResponse) => {
     const printWindow = window.open('', '', 'height=600,width=800');
     const content = `
       <html><head><title>Bill</title></head><body>
       <h2>AgriCorp Invoice</h2>
-      <p><strong>Customer:</strong> ${order.customerName}</p>
-      <p><strong>Phone:</strong> ${order.customerPhone}</p>
-      <p><strong>Showroom:</strong> ${showrooms.find(s => s.id === order.showroomId)?.name || 'N/A'}</p>
+      <p><strong>Customer:</strong> ${bill.customerName}</p>
+      <p><strong>Phone:</strong> ${bill.contact}</p>
+      <p><strong>Address:</strong> ${bill.village}, ${bill.taluka}, ${bill.district}</p>
       <table border="1" style="width:100%; border-collapse:collapse; margin-top:10px;">
         <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
         <tbody>
-          ${order.items.map(item => `
+          ${bill.items.map(item => `
             <tr>
-              <td>${item.productName}</td>
+              <td>${item.companyName} - ${item.category}</td>
               <td>${item.quantity} ${item.unit}</td>
-              <td>₹${item.price}</td>
+              <td>₹${item.salePrice}</td>
               <td>₹${Number(item.totalAmount).toFixed(2)}</td>
             </tr>`).join('')}
         </tbody>
       </table>
-      <p><strong>Total:</strong> ₹${Number(order.total).toFixed(2)}</p>
-      <p><strong>Paid:</strong> ₹${Number(order.paidAmount).toFixed(2)} | <strong>Unpaid:</strong> ₹${Number(order.unpaidAmount).toFixed(2)}</p>
+      <p><strong>Total:</strong> ₹${Number(bill.total).toFixed(2)}</p>
+      <p><strong>Paid:</strong> ₹${Number(bill.amountPayingNow).toFixed(2)} | <strong>Unpaid:</strong> ₹${Number(bill.unpaidAmount).toFixed(2)}</p>
       </body></html>
     `;
     printWindow?.document.write(content);
@@ -105,20 +118,11 @@ const BillsList: React.FC = () => {
     printWindow?.close();
   };
 
-  const getStatusSteps = (status: string) => {
-    switch (status) {
-      case 'Approved': return 1;
-      case 'Delivered': return 2;
-      default: return 0;
-    }
-  };
-
   const columns = [
     {
-      title: 'Date',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString()
+      title: 'Bill ID',
+      dataIndex: 'id',
+      key: 'id'
     },
     {
       title: 'Customer',
@@ -127,14 +131,13 @@ const BillsList: React.FC = () => {
     },
     {
       title: 'Phone',
-      dataIndex: 'customerPhone',
-      key: 'customerPhone'
+      dataIndex: 'contact',
+      key: 'contact'
     },
     {
-      title: 'Showroom',
-      dataIndex: 'showroomId',
-      key: 'showroomId',
-      render: (id: string) => showrooms.find(s => s.id === id)?.name || 'N/A'
+      title: 'Location',
+      key: 'location',
+      render: (_, record: BillResponse) => `${record.village}, ${record.district}`
     },
     {
       title: 'Total',
@@ -144,8 +147,8 @@ const BillsList: React.FC = () => {
     },
     {
       title: 'Paid',
-      dataIndex: 'paidAmount',
-      key: 'paidAmount',
+      dataIndex: 'amountPayingNow',
+      key: 'amountPayingNow',
       render: (amount: number) => `₹${Number(amount).toFixed(2)}`
     },
     {
@@ -157,38 +160,41 @@ const BillsList: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: Order) => (
+      render: (_: any, record: BillResponse) => (
         <div className="flex gap-2">
-          <Tooltip title="Download PDF">
+          <Tooltip title="View Bill">
             <Button
-              icon={<DownloadOutlined />}
+              icon={<EyeOutlined />}
               onClick={() => {
-                console.log(`Attempting to download PDF for order ${record.orderNumber} by user with role ${authState.role}`);
-                handleDownloadPDF(record);
+                setSelectedBill(record);
+                setViewBillModal(true);
               }}
-              disabled={!hasPermission('download_bill_pdf')}
             />
           </Tooltip>
           <Tooltip title="Print Bill">
             <Button
               icon={<PrinterOutlined />}
-              onClick={() => {
-                console.log(`Attempting to print bill for order ${record.orderNumber} by user with role ${authState.role}`);
-                handlePrint(record);
-              }}
-              disabled={!hasPermission('print_bill')}
+              onClick={() => handlePrint(record)}
             />
           </Tooltip>
-          <Tooltip title="View Bill">
+          <Tooltip title="Download PDF">
             <Button
-              icon={<EyeOutlined />}
-              onClick={() => {
-                console.log(`Viewing order ${record.orderNumber} by user with role ${authState.role}`);
-                setSelectedOrder(record);
-                setViewOrderModal(true);
-              }}
-              disabled={!hasPermission('view_bill_history')}
+              icon={<DownloadOutlined />}
+              onClick={() => handleDownloadPDF(record)}
             />
+          </Tooltip>
+          <Tooltip title="Delete Bill">
+            <Popconfirm
+              title="Are you sure you want to delete this bill?"
+              onConfirm={() => handleDeleteBill(record.id)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button
+                icon={<DeleteOutlined />}
+                danger
+              />
+            </Popconfirm>
           </Tooltip>
         </div>
       )
@@ -210,52 +216,41 @@ const BillsList: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div className="flex items-center gap-4">
           <Button icon={<LeftOutlined />} className="cursor-pointer" onClick={() => window.history.back()} />
-          <h2 className="text-lg font-semibold">
-            {authState.role === 'Super Admin' ? 'All Bills' : 'Your Showroom Bills'}
-          </h2>
+          <h2 className="text-lg font-semibold">All Bills</h2>
         </div>
         <Segmented
           options={['List View', 'Card View']}
           value={viewMode === 'list' ? 'List View' : 'Card View'}
           onChange={(value) => {
             const newMode = value === 'List View' ? 'list' : 'card';
-            console.log(`Switching to ${newMode} view for user with role ${authState.role}`);
             setViewMode(newMode);
           }}
         />
       </div>
       {viewMode === 'list' ? (
         <Table
-          dataSource={filteredOrders}
+          dataSource={bills}
           rowKey="id"
           columns={columns}
           scroll={{ x: 1000 }}
           pagination={{ pageSize: 10 }}
+          loading={loading}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredOrders.map((order, index) => (
-            <UICard key={order.id} className="flex flex-col">
+          {bills.map((bill) => (
+            <UICard key={bill.id} className="flex flex-col">
               <CardHeader>
-                <CardTitle>Order #{order.orderNumber}</CardTitle>
+                <CardTitle>Bill #{bill.id}</CardTitle>
               </CardHeader>
               <CardContent className="flex-grow">
-                <p><strong>Date:</strong> {new Date(order.createdAt).toLocaleDateString()}</p>
-                <p><strong>Customer:</strong> {order.customerName}</p>
-                <p><strong>Phone:</strong> {order.customerPhone}</p>
-                <p><strong>Showroom:</strong> {showrooms.find(s => s.id === order.showroomId)?.name || 'N/A'}</p>
-                <p><strong>Total:</strong> ₹{Number(order.total).toFixed(2)}</p>
-                <p><strong>Paid:</strong> ₹{Number(order.paidAmount).toFixed(2)}</p>
-                <p style={{ color: Number(order.unpaidAmount) > 0 ? 'red' : 'green' }}>
-                  <strong>Unpaid:</strong> ₹{Number(order.unpaidAmount).toFixed(2)}
-                </p>
-                <p><strong>Status:</strong>{' '}
-                  <Tag color={
-                    order.status === 'Delivered' ? 'green' :
-                    order.status === 'Approved' ? 'blue' : 'orange'
-                  }>
-                    {order.status}
-                  </Tag>
+                <p><strong>Customer:</strong> {bill.customerName}</p>
+                <p><strong>Phone:</strong> {bill.contact}</p>
+                <p><strong>Location:</strong> {bill.village}, {bill.district}</p>
+                <p><strong>Total:</strong> ₹{Number(bill.total).toFixed(2)}</p>
+                <p><strong>Paid:</strong> ₹{Number(bill.amountPayingNow).toFixed(2)}</p>
+                <p style={{ color: Number(bill.unpaidAmount) > 0 ? 'red' : 'green' }}>
+                  <strong>Unpaid:</strong> ₹{Number(bill.unpaidAmount).toFixed(2)}
                 </p>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
@@ -263,11 +258,7 @@ const BillsList: React.FC = () => {
                   <UIButton
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      console.log(`Attempting to download PDF for order ${order.orderNumber} by user with role ${authState.role}`);
-                      handleDownloadPDF(order);
-                    }}
-                    disabled={!hasPermission('download_bill_pdf')}
+                    onClick={() => handleDownloadPDF(bill)}
                   >
                     <DownloadOutlined />
                   </UIButton>
@@ -276,11 +267,7 @@ const BillsList: React.FC = () => {
                   <UIButton
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      console.log(`Attempting to print bill for order ${order.orderNumber} by user with role ${authState.role}`);
-                      handlePrint(order);
-                    }}
-                    disabled={!hasPermission('print_bill')}
+                    onClick={() => handlePrint(bill)}
                   >
                     <PrinterOutlined />
                   </UIButton>
@@ -290,11 +277,9 @@ const BillsList: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      console.log(`Viewing order ${order.orderNumber} by user with role ${authState.role}`);
-                      setSelectedOrder(order);
-                      setViewOrderModal(true);
+                      setSelectedBill(bill);
+                      setViewBillModal(true);
                     }}
-                    disabled={!hasPermission('view_bill_history')}
                   >
                     <EyeOutlined />
                   </UIButton>
@@ -305,72 +290,63 @@ const BillsList: React.FC = () => {
         </div>
       )}
       <Modal
-        title={<span style={{ fontSize: '18px', fontWeight: 600 }}>{`Order Details - ${selectedOrder?.orderNumber}`}</span>}
-        open={viewOrderModal}
-        onCancel={() => setViewOrderModal(false)}
+        title={<span style={{ fontSize: '18px', fontWeight: 600 }}>{`Bill Details - #${selectedBill?.id}`}</span>}
+        open={viewBillModal}
+        onCancel={() => setViewBillModal(false)}
         footer={[
           <Button
             key="print"
             icon={<PrinterOutlined />}
             type="primary"
-            onClick={() => selectedOrder && handlePrint(selectedOrder)}
-            disabled={!hasPermission('print_bill')}
+            onClick={() => selectedBill && handlePrint(selectedBill)}
           >
             Print
           </Button>,
-          <Button key="close" onClick={() => setViewOrderModal(false)}>
+          <Button key="close" onClick={() => setViewBillModal(false)}>
             Close
           </Button>
         ]}
         width={900}
       >
-        {selectedOrder && (
+        {selectedBill && (
           <div className="space-y-6">
             <Row gutter={16}>
               <Col span={12}>
                 <Card title="Customer Details" size="small" bordered={false}>
-                  <p><strong>Name:</strong> {selectedOrder.customerName}</p>
-                  <p><strong>Phone:</strong> {selectedOrder.customerPhone}</p>
-                  <p><strong>Address:</strong> {selectedOrder.customerAddress}</p>
-                  <p><strong>Village:</strong> {selectedOrder.village}</p>
-                  <p><strong>Taluka:</strong> {selectedOrder.taluka}</p>
-                  <p><strong>District:</strong> {selectedOrder.district}</p>
+                  <p><strong>Name:</strong> {selectedBill.customerName}</p>
+                  <p><strong>Phone:</strong> {selectedBill.contact}</p>
+                  <p><strong>Village:</strong> {selectedBill.village}</p>
+                  <p><strong>Taluka:</strong> {selectedBill.taluka}</p>
+                  <p><strong>District:</strong> {selectedBill.district}</p>
                 </Card>
               </Col>
               <Col span={12}>
-                <Card title="Order Information" size="small" bordered={false}>
-                  <p><strong>Order #:</strong> {selectedOrder.orderNumber}</p>
-                  <p><strong>Date:</strong> {new Date(selectedOrder.createdAt).toLocaleString('en-IN')}</p>
-                  <p><strong>Showroom:</strong> {showrooms.find(s => s.id === selectedOrder.showroomId)?.name || 'N/A'}</p>
-                  <p><strong>Status:</strong>{' '}
-                    <Tag color={
-                      selectedOrder.status === 'Delivered' ? 'green' :
-                      selectedOrder.status === 'Approved' ? 'blue' : 'orange'
-                    }>
-                      {selectedOrder.status}
-                    </Tag>
-                  </p>
+                <Card title="Bill Information" size="small" bordered={false}>
+                  <p><strong>Bill ID:</strong> {selectedBill.id}</p>
+                  <p><strong>Items Count:</strong> {selectedBill.items.length}</p>
                 </Card>
               </Col>
             </Row>
             <Divider orientation="left" plain>Products</Divider>
             <Table
-              dataSource={selectedOrder.items}
-              rowKey="productId"
+              dataSource={selectedBill.items}
+              rowKey="id"
               pagination={false}
               size="middle"
               bordered
               columns={[
-                { title: 'Product', dataIndex: 'productName', key: 'productName' },
+                { title: 'Company', dataIndex: 'companyName', key: 'companyName' },
+                { title: 'Category', dataIndex: 'category', key: 'category' },
+                { title: 'Type', dataIndex: 'type', key: 'type' },
                 {
                   title: 'Quantity',
                   key: 'quantity',
                   render: (_, item) => `${item.quantity} ${item.unit}`
                 },
                 {
-                  title: 'Price (₹)',
-                  dataIndex: 'price',
-                  key: 'price',
+                  title: 'Sale Price (₹)',
+                  dataIndex: 'salePrice',
+                  key: 'salePrice',
                   render: (price: number) => `₹${price.toFixed(2)}`
                 },
                 {
@@ -380,7 +356,7 @@ const BillsList: React.FC = () => {
                   render: (gst: number) => `${gst}%`
                 },
                 {
-                  title: 'Discount (%)',
+                  title: 'Discount',
                   dataIndex: 'discount',
                   key: 'discount',
                   render: (discount: number) => `${discount}%`
@@ -397,12 +373,10 @@ const BillsList: React.FC = () => {
             <Row justify="end">
               <Col span={12}>
                 <div className="summary-box" style={{ fontSize: 16 }}>
-                  <p><strong>Subtotal:</strong> ₹{Number(selectedOrder.subtotal).toFixed(2)}</p>
-                  <p><strong>GST Total:</strong> ₹{Number(selectedOrder.totalGst).toFixed(2)}</p>
-                  <p><strong>Total Amount:</strong> ₹{Number(selectedOrder.total).toFixed(2)}</p>
-                  <p><strong>Paid:</strong> ₹{Number(selectedOrder.paidAmount).toFixed(2)}</p>
-                  <p style={{ color: Number(selectedOrder.unpaidAmount) > 0 ? 'red' : 'green' }}>
-                    <strong>Unpaid:</strong> ₹{Number(selectedOrder.unpaidAmount).toFixed(2)}
+                  <p><strong>Total Amount:</strong> ₹{Number(selectedBill.total).toFixed(2)}</p>
+                  <p><strong>Amount Paid:</strong> ₹{Number(selectedBill.amountPayingNow).toFixed(2)}</p>
+                  <p style={{ color: Number(selectedBill.unpaidAmount) > 0 ? 'red' : 'green' }}>
+                    <strong>Unpaid Amount:</strong> ₹{Number(selectedBill.unpaidAmount).toFixed(2)}
                   </p>
                 </div>
               </Col>
@@ -415,298 +389,3 @@ const BillsList: React.FC = () => {
 };
 
 export default BillsList;
-
-// import React, { useState } from 'react';
-// import {
-//   Table,
-//   Button,
-//   Tooltip,
-//   Modal,
-//   Steps,
-//   Card,
-//   Row,
-//   Col,
-//   Tag,
-//   Divider 
-// } from 'antd';
-// import {
-//   EyeOutlined,
-//   DownloadOutlined,
-//   PrinterOutlined,
-//   LeftOutlined
-// } from '@ant-design/icons';
-// import { useData } from '../../context/DataContext';
-// import { generateOrderPDF } from '@/utils/pdfGenerator';
-// import type { Order } from '../../context/DataContext';
-
-// const { Step } = Steps;
-
-// const BillsList: React.FC = () => {
-//   const { orders, showrooms } = useData();
-
-//   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-//   const [viewOrderModal, setViewOrderModal] = useState(false);
-
-//   const handleDownloadPDF = async (order: Order) => {
-//     try {
-//       const companyInfo = {
-//         companyName: 'AgriCorp Showroom',
-//         address: '123 Village Lane, District Y',
-//         gstNumber: '27ABCDE1234F2Z5'
-//       };
-
-//         const transformedOrder = {
-//       ...order,
-//       items: order.items.map(item => ({
-//         productId: item.productId,
-//         name: item.productName, // mapping productName to name
-//         quantity: item.quantity,
-//         unitPrice: item.price,
-//         gst: item.gst,
-//         total: item.totalAmount ?? (item.quantity * item.price), // fallback if totalAmount is missing
-//       })),
-//     };
-
-//     await generateOrderPDF(transformedOrder, companyInfo);
-//     } catch (err) {
-//       console.error('PDF download error:', err);
-//     }
-//   };
-
-//   const handlePrint = (order: Order) => {
-//     const printWindow = window.open('', '', 'height=600,width=800');
-//     const content = `
-//       <html><head><title>Bill</title></head><body>
-//       <h2>AgriCorp Invoice</h2>
-//       <p><strong>Customer:</strong> ${order.customerName}</p>
-//       <p><strong>Phone:</strong> ${order.customerPhone}</p>
-//       <p><strong>Showroom:</strong> ${showrooms.find(s => s.id === order.showroomId)?.name || 'N/A'}</p>
-//       <table border="1" style="width:100%; border-collapse:collapse; margin-top:10px;">
-//         <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-//         <tbody>
-//           ${order.items.map(item => `
-//             <tr>
-//               <td>${item.productName}</td>
-//               <td>${item.quantity} ${item.unit}</td>
-//               <td>₹${item.price}</td>
-//               <td>₹${Number(item.totalAmount).toFixed(2)}</td>
-//             </tr>`).join('')}
-//         </tbody>
-//       </table>
-//       <p><strong>Total:</strong> ₹${Number(order.total).toFixed(2)}</p>
-//       <p><strong>Paid:</strong> ₹${Number(order.paidAmount).toFixed(2)} | <strong>Unpaid:</strong> ₹${Number(order.unpaidAmount).toFixed(2)}</p>
-//       </body></html>
-//     `;
-//     printWindow?.document.write(content);
-//     printWindow?.print();
-//     printWindow?.close();
-//   };
-
-//   const getStatusSteps = (status: string) => {
-//     switch (status) {
-//       case 'Approved': return 1;
-//       case 'Delivered': return 2;
-//       default: return 0;
-//     }
-//   };
-
-//   const columns = [
-//     {
-//       title: 'Date',
-//       dataIndex: 'createdAt',
-//       key: 'createdAt',
-//       render: (date: string) => new Date(date).toLocaleDateString()
-//     },
-//     {
-//       title: 'Customer',
-//       dataIndex: 'customerName',
-//       key: 'customerName'
-//     },
-//     {
-//       title: 'Phone',
-//       dataIndex: 'customerPhone',
-//       key: 'customerPhone'
-//     },
-//     {
-//       title: 'Showroom',
-//       dataIndex: 'showroomId',
-//       key: 'showroomId',
-//       render: (id: string) => showrooms.find(s => s.id === id)?.name || 'N/A'
-//     },
-//     {
-//       title: 'Total',
-//       dataIndex: 'total',
-//       key: 'total',
-//       render: (amount: number) => `₹${Number(amount).toFixed(2)}`
-//     },
-//     {
-//       title: 'Paid',
-//       dataIndex: 'paidAmount',
-//       key: 'paidAmount',
-//       render: (amount: number) => `₹${Number(amount).toFixed(2)}`
-//     },
-//     {
-//       title: 'Unpaid',
-//       dataIndex: 'unpaidAmount',
-//       key: 'unpaidAmount',
-//       render: (amount: number) => `₹${Number(amount).toFixed(2)}`
-//     },
-//     {
-//       title: 'Actions',
-//       key: 'actions',
-//       render: (_: any, record: Order) => (
-//         <div className="flex gap-2">
-//           <Tooltip title="Download PDF">
-//             <Button icon={<DownloadOutlined />} onClick={() => handleDownloadPDF(record)} />
-//           </Tooltip>
-//           <Tooltip title="Print Bill">
-//             <Button icon={<PrinterOutlined />} onClick={() => handlePrint(record)} />
-//           </Tooltip>
-//           <Tooltip title="View Bill">
-//             <Button icon={<EyeOutlined />} onClick={() => {
-//               setSelectedOrder(record);
-//               setViewOrderModal(true);
-//             }} />
-//           </Tooltip>
-//         </div>
-//       )
-//     }
-//   ];
-
-//   return (
-//     <div className="p-4 bg-white rounded ">
-//         <Button icon={<LeftOutlined />} className="cursor-pointer" onClick={() => window.history.back()}>
-//         </Button>
-//       <h2 className="text-lg font-semibold mb-4">All Bills</h2>
-//       <Table
-//         dataSource={orders}
-//         rowKey="id"
-//         columns={columns}
-//         scroll={{ x: 1000 }}
-//         pagination={{ pageSize: 10 }}
-//       />
-
-// <Modal
-//   title={<span style={{ fontSize: '18px', fontWeight: 600 }}>{`Order Details - ${selectedOrder?.orderNumber}`}</span>}
-//   open={viewOrderModal}
-//   onCancel={() => setViewOrderModal(false)}
-//   footer={[
-//     <Button key="print" icon={<PrinterOutlined />} type="primary" onClick={() => selectedOrder && handlePrint(selectedOrder)}>
-//       Print
-//     </Button>,
-//     <Button key="close" onClick={() => setViewOrderModal(false)}>
-//       Close
-//     </Button>
-//   ]}
-//   width={900}
-// >
-//   {selectedOrder && (
-//     <div className="space-y-6">
-//       {/* Status Steps */}
-//       {/* <Steps
-//         current={getStatusSteps(selectedOrder.status)}
-//         size="small"
-//         style={{ marginBottom: 24 }}
-//       >
-//         <Step title="Pending" />
-//         <Step title="Approved" />
-//         <Step title="Delivered" />
-//       </Steps> */}
-
-//       {/* Customer and Order Info */}
-//       <Row gutter={16}>
-//         <Col span={12}>
-//           <Card title="Customer Details" size="small" bordered={false}>
-//             <p><strong>Name:</strong> {selectedOrder.customerName}</p>
-//             <p><strong>Phone:</strong> {selectedOrder.customerPhone}</p>
-//             <p><strong>Address:</strong> {selectedOrder.customerAddress}</p>
-//             <p><strong>Village:</strong> {selectedOrder.village}</p>
-//             <p><strong>Taluka:</strong> {selectedOrder.taluka}</p>
-//             <p><strong>District:</strong> {selectedOrder.district}</p>
-//           </Card>
-//         </Col>
-//         <Col span={12}>
-//           <Card title="Order Information" size="small" bordered={false}>
-//             <p><strong>Order #:</strong> {selectedOrder.orderNumber}</p>
-//             <p><strong>Date:</strong> {new Date(selectedOrder.createdAt).toLocaleString('en-IN')}</p>
-//             <p><strong>Showroom:</strong> {showrooms.find(s => s.id === selectedOrder.showroomId)?.name || 'N/A'}</p>
-//             <p><strong>Status:</strong>{' '}
-//               <Tag color={
-//                 selectedOrder.status === 'Delivered' ? 'green' :
-//                 selectedOrder.status === 'Approved' ? 'blue' : 'orange'
-//               }>
-//                 {selectedOrder.status}
-//               </Tag>
-//             </p>
-//           </Card>
-//         </Col>
-//       </Row>
-
-//       <Divider orientation="left" plain>Products</Divider>
-
-//       {/* Products Table */}
-//       <Table
-//         dataSource={selectedOrder.items}
-//         rowKey="productId"
-//         pagination={false}
-//         size="middle"
-//         bordered
-//         columns={[
-//           { title: 'Product', dataIndex: 'productName', key: 'productName' },
-//           {
-//             title: 'Quantity',
-//             key: 'quantity',
-//             render: (_, item) => `${item.quantity} ${item.unit}`
-//           },
-//           {
-//             title: 'Price (₹)',
-//             dataIndex: 'price',
-//             key: 'price',
-//             render: (price: number) => `₹${price.toFixed(2)}`
-//           },
-//           {
-//             title: 'GST (%)',
-//             dataIndex: 'gst',
-//             key: 'gst',
-//             render: (gst: number) => `${gst}%`
-//           },
-//           {
-//             title: 'Discount (%)',
-//             dataIndex: 'discount',
-//             key: 'discount',
-//             render: (discount: number) => `${discount}%`
-//           },
-//           {
-//             title: 'Total (₹)',
-//             dataIndex: 'totalAmount',
-//             key: 'totalAmount',
-//             render: (value: number) => `₹${value.toFixed(2)}`
-//           }
-//         ]}
-//       />
-
-//       <Divider orientation="left" plain>Payment Summary</Divider>
-
-//       {/* Summary */}
-//       <Row justify="end">
-//         <Col span={12}>
-//           <div className="summary-box" style={{ fontSize: 16 }}>
-//             <p><strong>Subtotal:</strong> ₹{Number(selectedOrder.subtotal).toFixed(2)}</p>
-//             <p><strong>GST Total:</strong> ₹{Number(selectedOrder.totalGst).toFixed(2)}</p>
-//             <p><strong>Total Amount:</strong> ₹{Number(selectedOrder.total).toFixed(2)}</p>
-//             <p><strong>Paid:</strong> ₹{Number(selectedOrder.paidAmount).toFixed(2)}</p>
-//             <p style={{ color: Number(selectedOrder.unpaidAmount) > 0 ? 'red' : 'green' }}>
-//               <strong>Unpaid:</strong> ₹{Number(selectedOrder.unpaidAmount).toFixed(2)}
-//             </p>
-//           </div>
-//         </Col>
-//       </Row>
-//     </div>
-//   )}
-// </Modal>
-
-//     </div>
-//   );
-// };
-
-// export default BillsList;

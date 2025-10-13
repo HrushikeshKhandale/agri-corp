@@ -14,13 +14,25 @@ import {
 } from "antd";
 import customerService from "../services/customerService";
 import { Customer } from "../services/types/customer";
+import { useAuth } from '../context/AuthContexts';
 
 const Customers: React.FC = () => {
+  const { hasPermission } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [form] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Permission guard
+  if (!hasPermission('view_customers')) {
+    return (
+      <div className="p-6">
+        <h2>Customers</h2>
+        <p>You do not have permission to view customers.</p>
+      </div>
+    );
+  }
 // Add this state
 const [tablePagination, setTablePagination] = useState({
   current: 1,
@@ -105,15 +117,16 @@ const updateCustomer = async (id: number, data: Customer) => {
       title: "Actions",
       key: "actions",
       render: (_: any, record: Customer) => (
-        <span>
+        <div className="flex gap-2">
           <Button
+            size="small"
             onClick={() => {
               Modal.confirm({
                 title: "Edit Customer",
                 content: `Are you sure you want to edit "${record.name}"?`,
                 okText: "Edit",
                 cancelText: "Cancel",
-                maskClosable: true, // ✅ Allows closing by clicking outside
+                maskClosable: true,
                 onOk: () => {
                   setEditingCustomer(record);
                   form.setFieldsValue(record);
@@ -124,10 +137,12 @@ const updateCustomer = async (id: number, data: Customer) => {
                 },
               });
             }}
+            disabled={!hasPermission('edit_customer')}
           >
             Edit
           </Button>
           <Button
+            size="small"
             danger
             onClick={() => {
               Modal.confirm({
@@ -136,7 +151,7 @@ const updateCustomer = async (id: number, data: Customer) => {
                 okText: "Yes, Delete",
                 okType: "danger",
                 cancelText: "Cancel",
-                maskClosable: true, // ✅ Allows closing by clicking outside
+                maskClosable: true,
                 onOk: async () => {
                   await deleteCustomer(record.id);
                 },
@@ -145,10 +160,11 @@ const updateCustomer = async (id: number, data: Customer) => {
                 },
               });
             }}
+            disabled={!hasPermission('edit_customer')}
           >
             Delete
           </Button>
-        </span>
+        </div>
       ),
     },
   ];
@@ -170,16 +186,21 @@ const updateCustomer = async (id: number, data: Customer) => {
 
   return (
     <div className="p-6">
-      <Button
-        type="primary"
-        onClick={() => {
-          setEditingCustomer(null);
-          form.resetFields();
-          setIsModalVisible(true);
-        }}
-      >
-        Add Customer
-      </Button>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold">Customers Management</h2>
+        <Button
+          type="primary"
+          onClick={() => {
+            setEditingCustomer(null);
+            form.resetFields();
+            setIsModalVisible(true);
+          }}
+          disabled={!hasPermission('add_customer')}
+        >
+          Add Customer
+        </Button>
+      </div>
+      
       <Table
         dataSource={customers}
         columns={columns}

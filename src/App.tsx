@@ -3,7 +3,10 @@
 import React from 'react';
 import { ConfigProvider } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContexts'; // Make sure this matches your file name
+import { AuthProvider, useAuth } from './context/AuthContexts';
+import { DataProvider } from './context/DataContext';
+import { LoadingProvider } from './context/LoadingContext';
+import GlobalLoader from './components/GlobalLoader';
 import MainLayout from './components/Layout/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,10 +21,11 @@ import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import CreateBill from './pages/CreateBill';
 import Customers from './pages/Customers';
-import { Users } from 'lucide-react';
+import UsersPage from './pages/Users';
 import BillsList from './pages/bill/BillsList';
 import StockManagement from './pages/StockManagement';
 import ErrorBoundary from './ErrorBoundary';
+import ApiTest from './pages/ApiTest';
 
 // Ant Design theme configuration
 const antdTheme = {
@@ -64,8 +68,11 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const App = () => {
   return (
     <ConfigProvider theme={antdTheme}>
-      <AuthProvider>
-        <BrowserRouter>
+      <LoadingProvider>
+        <AuthProvider>
+          <DataProvider>
+            <GlobalLoader />
+            <BrowserRouter>
           <Routes>
             {/* Public Route — no auth needed */}
             <Route path="/login" element={
@@ -119,7 +126,13 @@ const App = () => {
 
             <Route path="/employees/users" element={
               <ProtectedRoute>
-                <Users />
+                <UsersPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/api-test" element={
+              <ProtectedRoute>
+                <ApiTest />
               </ProtectedRoute>
             } />
 
@@ -165,8 +178,10 @@ const App = () => {
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+            </BrowserRouter>
+          </DataProvider>
+        </AuthProvider>
+      </LoadingProvider>
     </ConfigProvider>
   );
 };

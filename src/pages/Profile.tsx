@@ -18,7 +18,7 @@ import {
   CalendarOutlined,
   DollarOutlined
 } from '@ant-design/icons';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContexts';
 import { useData } from '../context/DataContext';
 import dayjs from 'dayjs';
 
